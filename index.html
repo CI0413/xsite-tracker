@@ -789,7 +789,7 @@ function renderModalStages(site) {
   document.getElementById("modal-pane-stages").innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <div><div class="field-label">Status</div><div style="margin-top:2px;">${statusBadge(st)}</div></div>
-      <div><div class="field-label">Escalation</div><div style="margin-top:2px;font-size:13px;">${getEscalationLevel(site)?`<span style="color:var(--${getEscalationLevel(site)==="red"?"red":"amber"})">${getEscalationReason(site)}</span>`:"<span style="color:var(--green)">None</span>"}</div></div>
+      <div><div class="field-label">Escalation</div><div style="margin-top:2px;font-size:13px;">${(function(){const el=getEscalationLevel(site);return el?'<span style="color:var(--'+el+')">'+ getEscalationReason(site)+'</span>':'<span style="color:var(--green)">None</span>';})()}</div></div>
     </div>
     ${STAGES.map((stage,i)=>{
       const done=stage.check(site);
