@@ -327,7 +327,24 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
     <div class="export-options">
       <div class="export-card" onclick="exportCSV()"><div class="export-icon">&#128196;</div><div class="export-title">CSV Export</div><div class="export-desc">All 116 sites with status — open in Excel</div></div>
       <div class="export-card" onclick="exportJSON()"><div class="export-icon">&#128209;</div><div class="export-title">JSON Backup</div><div class="export-desc">Full data snapshot including check-in history</div></div>
-      <div class="export-card" onclick="exportSummaryHTML()"><div class="export-icon">&#128203;</div><div class="export-title">Summary Report</div><div class="export-desc">Printable HTML snapshot for Jeff or Anthonie</div></div>
+      <div class="export-card" onclick="exportSummaryHTML()"><div class="export-icon">&#128203;</div><div class="export-title">Summary Report</div><div class="export-desc">Printable HTML snapshot for Jeff or leadership</div></div>
+    </div>
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+      <h4 style="font-size:14px;font-weight:700;color:var(--dsv-navy);margin-bottom:6px;">Import Sites from CSV</h4>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Upload a CSV to add new sites. Existing sites (matched by LMPD) are not overwritten. Required columns: <code>name, lmpd, country, region, ci_contact</code>. Optional: <code>training_date, notes</code>.</p>
+      <div style="background:var(--gray-bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">Example format</div>
+        <pre style="font-size:11px;color:var(--dsv-navy);background:white;padding:8px;border-radius:4px;border:1px solid var(--border);margin:0;overflow-x:auto;">name,lmpd,country,region,ci_contact,training_date
+Austin TX,USAUS01,USA,USA,Rob Johns,2026-05-01
+Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label class="btn btn-outline" style="cursor:pointer;font-size:13px;">
+          &#8679; Choose CSV file
+          <input type="file" id="csv-import-input" accept=".csv" onchange="importCSV(event)" style="display:none;">
+        </label>
+        <span id="csv-import-status" style="font-size:13px;color:var(--text-muted);"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -356,7 +373,6 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
     <div class="settings-card">
       <h3>Team Structure</h3>
       <div class="setting-row"><span class="setting-name">Programme Owner</span><span class="setting-val">Polina Fox</span></div>
-      <div class="setting-row"><span class="setting-name">Global Owner</span><span class="setting-val">Anthonie Verploegh</span></div>
       <div class="setting-row"><span class="setting-name">Executive</span><span class="setting-val">Jeff Rice</span></div>
       <div class="setting-row"><span class="setting-name">Total Sites</span><span class="setting-val">116</span></div>
     </div>
@@ -1004,6 +1020,104 @@ window.exportSummaryHTML=function(){
   download("XSite_Report_"+new Date().toISOString().split("T")[0]+".html",html,"text/html");
 };
 function download(filename,content,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();}
+
+window.importCSV = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const status = document.getElementById("csv-import-status");
+  status.textContent = "Reading file...";
+  status.style.color = "var(--text-muted)";
+
+  const text = await file.text();
+  const lines = text.trim().split("\n").map(l => l.trim()).filter(l => l);
+  if (lines.length < 2) { status.textContent = "File is empty or has no data rows."; status.style.color = "var(--red)"; return; }
+
+  // Parse headers
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/[^a-z_]/g,""));
+  const nameIdx = headers.indexOf("name");
+  const lmpdIdx = headers.indexOf("lmpd");
+  const countryIdx = headers.indexOf("country");
+  const regionIdx = headers.indexOf("region");
+  const ciIdx = headers.indexOf("ci_contact");
+
+  if ([nameIdx,lmpdIdx,countryIdx,regionIdx,ciIdx].includes(-1)) {
+    status.textContent = "Missing required columns: name, lmpd, country, region, ci_contact";
+    status.style.color = "var(--red)"; return;
+  }
+
+  const trainingIdx = headers.indexOf("training_date");
+  const notesIdx = headers.indexOf("notes");
+
+  const existingLmpds = new Set(sites.map(s => s.lmpd.toUpperCase()));
+  const toAdd = [];
+  const skipped = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g,""));
+    const lmpd = (cols[lmpdIdx]||"").toUpperCase();
+    if (!lmpd || !cols[nameIdx]) continue;
+    if (existingLmpds.has(lmpd)) { skipped.push(lmpd); continue; }
+
+    toAdd.push({
+      id: lmpd,
+      name: cols[nameIdx] || "",
+      lmpd: lmpd,
+      country: cols[countryIdx] || "",
+      region: cols[regionIdx] || "",
+      ci_contact: cols[ciIdx] || "",
+      training_date: trainingIdx >= 0 ? (cols[trainingIdx]||"") : "",
+      training_status: "scheduled",
+      self_assessment_done: false,
+      self_assessment_date: null,
+      action_plan_created: false,
+      action_plan_date: null,
+      action_tracker_progress: false,
+      spot_check_done: false,
+      spot_check_date: null,
+      xsite_app_registered: false,
+      xsite_registration_date: null,
+      notes: notesIdx >= 0 ? (cols[notesIdx]||"") : "",
+      checkin_log: [],
+      history: []
+    });
+  }
+
+  if (toAdd.length === 0) {
+    status.textContent = `No new sites to add. ${skipped.length} already exist (matched by LMPD).`;
+    status.style.color = "var(--amber)"; return;
+  }
+
+  status.textContent = `Adding ${toAdd.length} sites to Firebase...`;
+
+  try {
+    const batch = writeBatch(db);
+    toAdd.forEach(s => { batch.set(doc(db,"sites",s.id), s); sites.push(s); });
+    await batch.commit();
+    document.getElementById("fb-site-count").textContent = sites.length;
+    populateFilterDropdownsUpdate();
+    renderAll();
+    status.textContent = `✓ ${toAdd.length} sites added successfully${skipped.length>0?" · "+skipped.length+" skipped (already exist)":""}.`;
+    status.style.color = "var(--green)";
+    // Reset file input
+    document.getElementById("csv-import-input").value = "";
+  } catch(e) {
+    status.textContent = "Firebase error: " + e.message;
+    status.style.color = "var(--red)";
+  }
+};
+
+function populateFilterDropdownsUpdate() {
+  const ciSel = document.getElementById("f-ci");
+  const ctSel = document.getElementById("f-country");
+  const existingCIs = new Set([...ciSel.options].map(o=>o.value));
+  const existingCTs = new Set([...ctSel.options].map(o=>o.value));
+  [...new Set(sites.map(s=>s.ci_contact))].sort().forEach(c=>{
+    if(!existingCIs.has(c)){const o=document.createElement("option");o.value=c;o.textContent=c;ciSel.appendChild(o);}
+  });
+  [...new Set(sites.map(s=>s.country))].sort().forEach(c=>{
+    if(!existingCTs.has(c)){const o=document.createElement("option");o.value=c;o.textContent=c;ctSel.appendChild(o);}
+  });
+}
 
 loadSites();
 </script>
