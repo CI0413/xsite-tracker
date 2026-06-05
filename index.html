@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XSite Americas Tracker</title>
+<style>
+:root {
+  --dsv-navy: #002664;
+  --dsv-orange: #FF6E00;
+  --dsv-navy-light: #1a3a7a;
+  --dsv-navy-pale: #e8edf5;
+  --green: #22863a;
+  --green-bg: #e6f4ea;
+  --amber: #b45309;
+  --amber-bg: #fef3c7;
+  --red: #c0392b;
+  --red-bg: #fdecea;
+  --gray: #6b7280;
+  --gray-bg: #f3f4f6;
+  --border: #e5e7eb;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --font: Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: #f0f2f7; color: var(--text); font-size: 14px; }
+
+#loading-screen {
+  position: fixed; inset: 0; background: var(--dsv-navy);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; color: white;
+}
+#loading-screen h2 { font-size: 22px; margin-bottom: 8px; }
+#loading-screen p { font-size: 14px; opacity: 0.7; margin-bottom: 24px; }
+.spinner {
+  width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: var(--dsv-orange); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.sync-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #ccc;
+  display: inline-block; margin-right: 6px; transition: background 0.3s;
+}
+.sync-dot.syncing { background: var(--dsv-orange); animation: pulse 1s ease infinite; }
+.sync-dot.synced { background: var(--green); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+#header {
+  background: var(--dsv-navy); color: white;
+  padding: 0 24px; display: flex; align-items: center;
+  justify-content: space-between; height: 56px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,38,100,0.3);
+}
+#header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+#header h1 span { color: var(--dsv-orange); }
+.header-meta { font-size: 12px; opacity: 0.7; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.sync-status { font-size: 12px; display: flex; align-items: center; }
+.header-actions { display: flex; gap: 8px; }
+.btn { padding: 6px 14px; border-radius: 4px; font-size: 13px; cursor: pointer; font-family: var(--font); border: none; font-weight: 600; }
+.btn-primary { background: var(--dsv-orange); color: white; }
+.btn-primary:hover { background: #e56200; }
+.btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+.btn-secondary:hover { background: rgba(255,255,255,0.25); }
+.btn-outline { background: white; color: var(--dsv-navy); border: 1px solid var(--border); }
+.btn-outline:hover { background: var(--dsv-navy-pale); }
+
+#tabs {
+  background: white; border-bottom: 1px solid var(--border);
+  display: flex; padding: 0 24px;
+}
+.tab {
+  padding: 12px 20px; cursor: pointer; font-size: 13px; font-weight: 600;
+  color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s;
+}
+.tab:hover { color: var(--dsv-navy); }
+.tab.active { color: var(--dsv-navy); border-bottom-color: var(--dsv-orange); }
+
+#main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+.metrics-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+.metric-card {
+  background: white; border-radius: 8px; padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+.metric-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.metric-value { font-size: 26px; font-weight: 700; color: var(--dsv-navy); line-height: 1; }
+.metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.metric-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; }
+.metric-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+.filters-row {
+  background: white; border-radius: 8px; border: 1px solid var(--border);
+  padding: 12px 16px; display: flex; gap: 10px; align-items: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.filter-group { display: flex; align-items: center; gap: 6px; }
+.filter-label { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+select, input[type=text] {
+  border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;
+  font-size: 13px; font-family: var(--font); color: var(--text); background: white;
+}
+input[type=text] { width: 200px; }
+.filter-sep { color: var(--border); font-size: 18px; }
+.filter-count { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.3px; white-space: nowrap;
+}
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-amber { background: var(--amber-bg); color: var(--amber); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-gray { background: var(--gray-bg); color: var(--gray); }
+.badge-navy { background: var(--dsv-navy-pale); color: var(--dsv-navy); }
+
+.table-wrap { background: white; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: var(--dsv-navy); color: white; padding: 10px 12px;
+  text-align: left; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  cursor: pointer; user-select: none;
+}
+thead th:hover { background: var(--dsv-navy-light); }
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+td { padding: 9px 12px; vertical-align: middle; }
+td.site-name { font-weight: 600; color: var(--dsv-navy); }
+td.lmpd-code { font-family: "Courier New", monospace; font-size: 12px; color: var(--text-muted); }
+
+.stage-dots { display: flex; gap: 3px; align-items: center; }
+.stage-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  font-size: 8px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: white; cursor: help; position: relative;
+}
+.stage-dot.done { background: var(--green); }
+.stage-dot.pending { background: var(--border); }
+.stage-dot:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1f2937; color: white; font-size: 11px; padding: 4px 8px;
+  border-radius: 4px; white-space: nowrap; z-index: 200; pointer-events: none;
+}
+
+.panel-view { display: none; }
+.panel-view.active { display: block; }
+
+.ai-panel { background: white; border-radius: 8px; border: 1px solid var(--border); padding: 20px; }
+.ai-messages { min-height: 300px; max-height: 400px; overflow-y: auto; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ai-msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; max-width: 85%; white-space: pre-wrap; }
+.ai-msg.user { background: var(--dsv-navy-pale); align-self: flex-end; color: var(--dsv-navy); font-weight: 500; }
+.ai-msg.assistant { background: var(--gray-bg); align-self: flex-start; }
+.ai-msg.loading { color: var(--text-muted); font-style: italic; }
+.ai-input-row { display: flex; gap: 8px; }
+.ai-input-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: var(--font); }
+.ai-quick-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.ai-quick { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--dsv-navy); background: white; color: var(--dsv-navy); font-size: 12px; cursor: pointer; font-family: var(--font); font-weight: 600; }
+.ai-quick:hover { background: var(--dsv-navy-pale); }
+
+.export-panel { background: white; border-radius: 8px; border: 1px solid var(--border); padding: 20px; }
+.export-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.export-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.export-card:hover { border-color: var(--dsv-orange); background: #fff8f3; }
+.export-icon { font-size: 28px; margin-bottom: 8px; }
+.export-title { font-weight: 700; font-size: 14px; color: var(--dsv-navy); margin-bottom: 4px; }
+.export-desc { font-size: 12px; color: var(--text-muted); }
+
+.region-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.region-card { background: white; border-radius: 8px; border: 1px solid var(--border); padding: 14px 16px; }
+.region-card h3 { font-size: 13px; font-weight: 700; color: var(--dsv-navy); margin-bottom: 10px; display: flex; justify-content: space-between; }
+.progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.progress-label { font-size: 11px; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+.progress-bar-outer { flex: 1; height: 6px; background: var(--border); border-radius: 3px; }
+.progress-bar-inner { height: 100%; border-radius: 3px; background: var(--dsv-navy); transition: width 0.3s; }
+.progress-pct { font-size: 11px; font-weight: 700; color: var(--dsv-navy); width: 32px; text-align: right; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 300; display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 10px; padding: 24px;
+  width: 560px; max-width: 95vw; max-height: 85vh; overflow-y: auto; position: relative;
+}
+.modal h2 { font-size: 16px; color: var(--dsv-navy); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.modal-close { position: absolute; top: 16px; right: 16px; cursor: pointer; font-size: 18px; color: var(--text-muted); background: none; border: none; }
+.field-group { margin-bottom: 14px; }
+.field-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+.stage-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.stage-row:last-child { border-bottom: none; }
+.stage-num { width: 22px; height: 22px; border-radius: 50%; background: var(--dsv-navy); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stage-name { flex: 1; font-size: 13px; font-weight: 500; }
+
+.alert-banner {
+  background: var(--red-bg); border: 1px solid #fca5a5; border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: var(--red);
+  display: flex; align-items: center; gap: 8px;
+}
+.alert-banner.amber { background: var(--amber-bg); border-color: #fcd34d; color: var(--amber); }
+
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-top: 1px solid var(--border); background: #fafafa;
+}
+.page-info { font-size: 12px; color: var(--text-muted); }
+.page-btns { display: flex; gap: 4px; }
+.page-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; cursor: pointer; background: white; font-family: var(--font); }
+.page-btn:hover { background: var(--dsv-navy-pale); }
+.page-btn.active { background: var(--dsv-navy); color: white; border-color: var(--dsv-navy); }
+.page-btn:disabled { opacity: 0.4; cursor: default; }
+
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.settings-card { background: white; border-radius: 8px; border: 1px solid var(--border); padding: 16px; }
+.settings-card h3 { font-size: 13px; font-weight: 700; color: var(--dsv-navy); margin-bottom: 12px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.setting-row:last-child { border-bottom: none; }
+.setting-name { font-size: 13px; }
+.setting-val { font-size: 13px; font-weight: 600; color: var(--dsv-orange); }
+input[type=number] { width: 60px; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 13px; font-family: var(--font); }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <h2>X<span style="color:#FF6E00">Site</span> Americas Tracker</h2>
+  <p id="loading-msg">Connecting to Firebase...</p>
+  <div class="spinner"></div>
+</div>
+
+<div id="header">
+  <div>
+    <h1>X<span>Site</span> Americas Tracker</h1>
+    <div class="header-meta">CI&amp;PO Programme Operations &mdash; Americas</div>
+  </div>
+  <div class="header-right">
+    <div class="sync-status">
+      <span class="sync-dot synced" id="sync-dot"></span>
+      <span id="sync-label" style="color:rgba(255,255,255,0.7);font-size:12px;">Live</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="showTab('ai')">&#129302; Ask AI</button>
+      <button class="btn btn-primary" onclick="showTab('export')">&#8595; Export</button>
+    </div>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</div>
+  <div class="tab" onclick="showTab('tracker')" id="tab-tracker">Site Tracker</div>
+  <div class="tab" onclick="showTab('ai')" id="tab-ai">AI Analysis</div>
+  <div class="tab" onclick="showTab('export')" id="tab-export">Export &amp; Reports</div>
+  <div class="tab" onclick="showTab('settings')" id="tab-settings">Settings</div>
+</div>
+
+<div id="main">
+
+<div id="view-dashboard" class="panel-view active">
+  <div id="alert-zone"></div>
+  <div class="metrics-row" id="metrics-row"></div>
+  <div class="region-grid" id="region-grid"></div>
+  <div style="background:white;border-radius:8px;border:1px solid var(--border);padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:14px;color:var(--dsv-navy);font-weight:700;">Progress by CI Contact</h3>
+      <span style="font-size:12px;color:var(--text-muted);">Target: 100% by Dec 31, 2026</span>
+    </div>
+    <div id="ci-progress-bars"></div>
+  </div>
+</div>
+
+<div id="view-tracker" class="panel-view">
+  <div class="filters-row">
+    <div class="filter-group">
+      <span class="filter-label">Region:</span>
+      <select id="f-region" onchange="applyFilters()">
+        <option value="">All Regions</option>
+        <option value="USA">USA</option>
+        <option value="Canada">Canada</option>
+        <option value="LATAM">LATAM</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">CI Contact:</span>
+      <select id="f-ci" onchange="applyFilters()">
+        <option value="">All CI Contacts</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Status:</span>
+      <select id="f-status" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="green">On Track</option>
+        <option value="amber">At Risk</option>
+        <option value="red">Critical</option>
+        <option value="gray">Not Started</option>
+        <option value="navy">In Progress</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Country:</span>
+      <select id="f-country" onchange="applyFilters()">
+        <option value="">All Countries</option>
+      </select>
+    </div>
+    <span style="color:var(--border);font-size:18px;">|</span>
+    <div class="filter-group">
+      <input type="text" id="f-search" placeholder="Search site name or LMPD..." oninput="applyFilters()">
+    </div>
+    <div class="filter-count" id="filter-count"></div>
+    <button class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:5px 10px;" onclick="clearFilters()">Clear</button>
+  </div>
+  <div class="table-wrap">
+    <table id="main-table">
+      <thead>
+        <tr>
+          <th onclick="sortBy('name')">Site Name &#8597;</th>
+          <th onclick="sortBy('lmpd')">LMPD &#8597;</th>
+          <th onclick="sortBy('country')">Country &#8597;</th>
+          <th onclick="sortBy('ci_contact')">CI Contact &#8597;</th>
+          <th>Progress</th>
+          <th onclick="sortBy('status')">Status &#8597;</th>
+          <th>App Reg.</th>
+          <th>Notes</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<div id="view-ai" class="panel-view">
+  <div class="ai-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:700;color:var(--dsv-navy);">AI Programme Analyst</h3>
+      <span style="font-size:12px;color:var(--text-muted);">Powered by Claude &bull; Reads live Firebase data</span>
+    </div>
+    <div class="ai-quick-btns">
+      <button class="ai-quick" onclick="askQuick('What sites are most at risk of missing the year-end target?')">At-risk sites</button>
+      <button class="ai-quick" onclick="askQuick('Summarize progress by CI contact')">CI summary</button>
+      <button class="ai-quick" onclick="askQuick('Which LATAM sites need immediate attention?')">LATAM focus</button>
+      <button class="ai-quick" onclick="askQuick('What percentage of sites are registered in the XSite app?')">App registration</button>
+      <button class="ai-quick" onclick="askQuick('Generate a status update email for Jeff Rice')">Status email</button>
+    </div>
+    <div class="ai-messages" id="ai-messages">
+      <div class="ai-msg assistant">Hello Polina! I have full visibility into all 116 XSite Americas sites via Firebase. Ask me anything about progress, risks, CI contact performance, or regional breakdowns — or ask me to draft a status update for Jeff or Anthonie.</div>
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="ai-input" placeholder="Ask about site progress, risks, or request a report..." onkeydown="if(event.key==='Enter') sendAI()">
+      <button class="btn btn-primary" onclick="sendAI()">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-export" class="panel-view">
+  <div class="export-panel">
+    <h3 style="font-size:15px;font-weight:700;color:var(--dsv-navy);margin-bottom:6px;">Export &amp; Reports</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Download tracker data or generate formatted reports for stakeholders.</p>
+    <div class="export-options">
+      <div class="export-card" onclick="exportCSV()">
+        <div class="export-icon">&#128196;</div>
+        <div class="export-title">CSV Export</div>
+        <div class="export-desc">All 116 sites with current status — open in Excel</div>
+      </div>
+      <div class="export-card" onclick="exportJSON()">
+        <div class="export-icon">&#128209;</div>
+        <div class="export-title">JSON Backup</div>
+        <div class="export-desc">Full data snapshot for backup or recovery</div>
+      </div>
+      <div class="export-card" onclick="exportSummaryHTML()">
+        <div class="export-icon">&#128203;</div>
+        <div class="export-title">Summary Report</div>
+        <div class="export-desc">Printable HTML status snapshot for Jeff or Anthonie</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="view-settings" class="panel-view">
+  <div class="settings-grid">
+    <div class="settings-card">
+      <h3>Alert Thresholds</h3>
+      <div class="setting-row">
+        <span class="setting-name">Missed check-ins before AMBER</span>
+        <input type="number" id="s-amber-miss" value="2" min="1" max="5" onchange="saveSettings()">
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Missed check-ins before RED</span>
+        <input type="number" id="s-red-miss" value="4" min="2" max="8" onchange="saveSettings()">
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">App registration RED deadline</span>
+        <input type="date" id="s-reg-deadline" value="2026-07-01" onchange="saveSettings()">
+      </div>
+    </div>
+    <div class="settings-card">
+      <h3>Programme Targets</h3>
+      <div class="setting-row">
+        <span class="setting-name">Year-end completion target</span>
+        <input type="date" id="s-year-end" value="2026-12-31" onchange="saveSettings()">
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Check-in frequency (days)</span>
+        <input type="number" id="s-checkin-freq" value="30" min="7" max="90" onchange="saveSettings()">
+      </div>
+    </div>
+    <div class="settings-card">
+      <h3>Team Structure</h3>
+      <div class="setting-row"><span class="setting-name">Programme Owner</span><span class="setting-val">Polina Fox</span></div>
+      <div class="setting-row"><span class="setting-name">Global Owner</span><span class="setting-val">Anthonie Verploegh</span></div>
+      <div class="setting-row"><span class="setting-name">Executive</span><span class="setting-val">Jeff Rice</span></div>
+      <div class="setting-row"><span class="setting-name">Total Sites</span><span class="setting-val">116</span></div>
+    </div>
+    <div class="settings-card">
+      <h3>Firebase</h3>
+      <div class="setting-row"><span class="setting-name">Project</span><span class="setting-val">xsite-americas-tracker</span></div>
+      <div class="setting-row"><span class="setting-name">Last keepalive</span><span class="setting-val" id="last-keepalive">—</span></div>
+      <div class="setting-row"><span class="setting-name">Sites in Firestore</span><span class="setting-val" id="fb-site-count">—</span></div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-outline" style="font-size:12px;width:100%;" onclick="forceSeedFirebase()">Re-seed Firebase (116 sites)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- SITE DETAIL MODAL -->
+<div class="modal-overlay" id="site-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 id="modal-title">Site Detail</h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCAcn8C9edyUE15gYrYkwRXB4L_yOW3SZk",
+  authDomain: "xsite-americas-tracker.firebaseapp.com",
+  projectId: "xsite-americas-tracker",
+  storageBucket: "xsite-americas-tracker.firebasestorage.app",
+  messagingSenderId: "531306921902",
+  appId: "1:531306921902:web:87411f7be2f3693c70923f"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const SEED_DATA = [{"id": "USLNC01", "name": "Lancaster, TX", "lmpd": "USLNC01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USMEM01", "name": "Memphis, TN", "lmpd": "USMEM01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USNSH01", "name": "Nashville, TN", "lmpd": "USNSH01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USDAL01", "name": "Dallas, TX", "lmpd": "USDAL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USHST01", "name": "Houston, TX - Beltway", "lmpd": "USHST01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USHST02", "name": "Houston, TX - Greens", "lmpd": "USHST02", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSAT01", "name": "San Antonio, TX", "lmpd": "USSAT01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USKSC01", "name": "Kansas City, MO", "lmpd": "USKSC01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSTL01", "name": "St. Louis, MO", "lmpd": "USSTL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCHG01", "name": "Chicago, IL - Elk Grove", "lmpd": "USCHG01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCHG02", "name": "Chicago, IL - Bolingbrook", "lmpd": "USCHG02", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USIND01", "name": "Indianapolis, IN", "lmpd": "USIND01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCOL01", "name": "Columbus, OH", "lmpd": "USCOL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCLV01", "name": "Cleveland, OH", "lmpd": "USCLV01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USDTR01", "name": "Detroit, MI", "lmpd": "USDTR01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USMPL01", "name": "Minneapolis, MN", "lmpd": "USMPL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USMIL01", "name": "Milwaukee, WI", "lmpd": "USMIL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USOMA01", "name": "Omaha, NE", "lmpd": "USOMA01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USDMS01", "name": "Des Moines, IA", "lmpd": "USDMS01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLVL01", "name": "Louisville, KY", "lmpd": "USLVL01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCIN01", "name": "Cincinnati, OH", "lmpd": "USCIN01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPTT01", "name": "Pittsburgh, PA", "lmpd": "USPTT01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USDNV01", "name": "Denver, CO", "lmpd": "USDNV01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPHX01", "name": "Phoenix, AZ", "lmpd": "USPHX01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USALB01", "name": "Albuquerque, NM", "lmpd": "USALB01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSLC01", "name": "Salt Lake City, UT", "lmpd": "USSLC01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLVG01", "name": "Las Vegas, NV", "lmpd": "USLVG01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPRT01", "name": "Portland, OR", "lmpd": "USPRT01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USBSE01", "name": "Boise, ID", "lmpd": "USBSE01", "country": "USA", "region": "USA", "ci_contact": "Rob Johns", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USATL01", "name": "Atlanta, GA - Doraville", "lmpd": "USATL01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USATL02", "name": "Atlanta, GA - College Park", "lmpd": "USATL02", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCLT01", "name": "Charlotte, NC", "lmpd": "USCLT01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USRAL01", "name": "Raleigh, NC", "lmpd": "USRAL01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USRCM01", "name": "Richmond, VA", "lmpd": "USRCM01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USBLT01", "name": "Baltimore, MD", "lmpd": "USBLT01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPHL01", "name": "Philadelphia, PA", "lmpd": "USPHL01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPHL02", "name": "Philadelphia, PA - Trevose", "lmpd": "USPHL02", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USNYK01", "name": "New York, NY - JFK", "lmpd": "USNYK01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USNYK02", "name": "New York, NY - Newark", "lmpd": "USNYK02", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USBOS01", "name": "Boston, MA", "lmpd": "USBOS01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USHRT01", "name": "Hartford, CT", "lmpd": "USHRT01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USORL01", "name": "Orlando, FL", "lmpd": "USORL01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USMIA01", "name": "Miami, FL", "lmpd": "USMIA01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USTMP01", "name": "Tampa, FL", "lmpd": "USTMP01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USJKV01", "name": "Jacksonville, FL", "lmpd": "USJKV01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USBHM01", "name": "Birmingham, AL", "lmpd": "USBHM01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USJCK01", "name": "Jackson, MS", "lmpd": "USJCK01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USNOR01", "name": "New Orleans, LA", "lmpd": "USNOR01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLTR01", "name": "Little Rock, AR", "lmpd": "USLTR01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USOKC01", "name": "Oklahoma City, OK", "lmpd": "USOKC01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSVN01", "name": "Savannah, GA", "lmpd": "USSVN01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USCLM01", "name": "Columbia, SC", "lmpd": "USCLM01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USNFK01", "name": "Norfolk, VA", "lmpd": "USNFK01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USBUF01", "name": "Buffalo, NY", "lmpd": "USBUF01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USALB02", "name": "Albany, NY", "lmpd": "USALB02", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPRV01", "name": "Providence, RI", "lmpd": "USPRV01", "country": "USA", "region": "USA", "ci_contact": "Christine Hallier", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLAX01", "name": "Los Angeles, CA - LAX", "lmpd": "USLAX01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLAX02", "name": "Los Angeles, CA - Ontario", "lmpd": "USLAX02", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLAX03", "name": "Los Angeles, CA - Long Beach", "lmpd": "USLAX03", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSFR01", "name": "San Francisco, CA", "lmpd": "USSFR01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSJC01", "name": "San Jose, CA", "lmpd": "USSJC01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSAC01", "name": "Sacramento, CA", "lmpd": "USSAC01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSND01", "name": "San Diego, CA", "lmpd": "USSND01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSEA01", "name": "Seattle, WA", "lmpd": "USSEA01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USTCM01", "name": "Tacoma, WA", "lmpd": "USTCM01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSPK01", "name": "Spokane, WA", "lmpd": "USSPK01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USANC01", "name": "Anchorage, AK", "lmpd": "USANC01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USHON01", "name": "Honolulu, HI", "lmpd": "USHON01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USFRS01", "name": "Fresno, CA", "lmpd": "USFRS01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USRNO01", "name": "Reno, NV", "lmpd": "USRNO01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USTCS01", "name": "Tucson, AZ", "lmpd": "USTCS01", "country": "USA", "region": "USA", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXMEX01", "name": "Mexico City - Vallejo", "lmpd": "MXMEX01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXMEX02", "name": "Mexico City - Santa Fe", "lmpd": "MXMEX02", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXGDL01", "name": "Guadalajara", "lmpd": "MXGDL01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXMTY01", "name": "Monterrey", "lmpd": "MXMTY01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXTIJ01", "name": "Tijuana", "lmpd": "MXTIJ01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXQRO01", "name": "Queretaro", "lmpd": "MXQRO01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXPUE01", "name": "Puebla", "lmpd": "MXPUE01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXSLP01", "name": "San Luis Potosi", "lmpd": "MXSLP01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXJRZ01", "name": "Juarez", "lmpd": "MXJRZ01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXAGS01", "name": "Aguascalientes", "lmpd": "MXAGS01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXTLC01", "name": "Toluca", "lmpd": "MXTLC01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "MXCUN01", "name": "Cancun", "lmpd": "MXCUN01", "country": "Mexico", "region": "LATAM", "ci_contact": "Irving Ogaz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USAUR01", "name": "Aurora, IL", "lmpd": "USAUR01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USELG01", "name": "Elgin, IL", "lmpd": "USELG01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USJLT01", "name": "Joliet, IL", "lmpd": "USJLT01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USRKF01", "name": "Rockford, IL", "lmpd": "USRKF01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USPEO01", "name": "Peoria, IL", "lmpd": "USPEO01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSPR01", "name": "Springfield, IL", "lmpd": "USSPR01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USFTW01", "name": "Fort Wayne, IN", "lmpd": "USFTW01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USSBD01", "name": "South Bend, IN", "lmpd": "USSBD01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USEVN01", "name": "Evansville, IN", "lmpd": "USEVN01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USGRP01", "name": "Grand Rapids, MI", "lmpd": "USGRP01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLNS01", "name": "Lansing, MI", "lmpd": "USLNS01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USTLD01", "name": "Toledo, OH", "lmpd": "USTLD01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USDYT01", "name": "Dayton, OH", "lmpd": "USDYT01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USAKR01", "name": "Akron, OH", "lmpd": "USAKR01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USYNG01", "name": "Youngstown, OH", "lmpd": "USYNG01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USLEX01", "name": "Lexington, KY", "lmpd": "USLEX01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "USKNX01", "name": "Knoxville, TN", "lmpd": "USKNX01", "country": "USA", "region": "USA", "ci_contact": "Matthew Burris", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "COBOG01", "name": "Bogota - Intexzona", "lmpd": "COBOG01", "country": "Colombia", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "COBOG02", "name": "Bogota - Carrera 96", "lmpd": "COBOG02", "country": "Colombia", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "COCRT01", "name": "Cartagena", "lmpd": "COCRT01", "country": "Colombia", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "PELIM01", "name": "Lima - Villa El Salvador", "lmpd": "PELIM01", "country": "Peru", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "PELIM02", "name": "Lima - Aldea", "lmpd": "PELIM02", "country": "Peru", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "PELIM03", "name": "Lima - Multiclientes", "lmpd": "PELIM03", "country": "Peru", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "ARBUE01", "name": "Buenos Aires - TLC Tigre", "lmpd": "ARBUE01", "country": "Argentina", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "ARBUE02", "name": "Buenos Aires - Volkswagen", "lmpd": "ARBUE02", "country": "Argentina", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "BRSP001", "name": "Sao Paulo - Cajamar", "lmpd": "BRSP001", "country": "Brazil", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "BRSP002", "name": "Sao Paulo - Jundiai", "lmpd": "BRSP002", "country": "Brazil", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "BRSP003", "name": "Sao Paulo - Itupeva", "lmpd": "BRSP003", "country": "Brazil", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "BRSP004", "name": "Sao Paulo - Sorocaba", "lmpd": "BRSP004", "country": "Brazil", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "CLSTG01", "name": "Santiago", "lmpd": "CLSTG01", "country": "Chile", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "PAPAN01", "name": "Panama City", "lmpd": "PAPAN01", "country": "Panama", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "CRSJC01", "name": "San Jose, CR", "lmpd": "CRSJC01", "country": "Costa Rica", "region": "LATAM", "ci_contact": "Angela Ruiz", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}, {"id": "CATOR01", "name": "Toronto - Clorox", "lmpd": "CATOR01", "country": "Canada", "region": "Canada", "ci_contact": "Matt Walsh", "training_date": "2026-05-01", "training_status": "completed", "self_assessment_done": false, "self_assessment_date": null, "action_plan_created": false, "action_plan_date": null, "checkins_held": 0, "consecutive_missed": 0, "last_checkin_date": null, "action_tracker_progress": false, "spot_check_done": false, "spot_check_date": null, "xsite_app_registered": false, "xsite_registration_date": null, "notes": "", "history": []}];
+
+const STAGES = [
+  { label: "Training completed", check: s => s.training_status === "completed" },
+  { label: "Self-assessment done", check: s => s.self_assessment_done },
+  { label: "Action plan created", check: s => s.action_plan_created },
+  { label: "Check-ins started", check: s => s.checkins_held > 0 },
+  { label: "Action tracker progress", check: s => s.action_tracker_progress },
+  { label: "Spot check done", check: s => s.spot_check_done },
+  { label: "XSite app registered", check: s => s.xsite_app_registered }
+];
+
+let sites = [];
+let filtered = [];
+let sortCol = "name";
+let sortDir = 1;
+let currentPage = 1;
+const PAGE_SIZE = 25;
+let settings = { amberMiss: 2, redMiss: 4, regDeadline: "2026-07-01", yearEnd: "2026-12-31", checkinFreq: 30 };
+
+function setSyncState(state) {
+  const dot = document.getElementById("sync-dot");
+  const label = document.getElementById("sync-label");
+  dot.className = "sync-dot " + state;
+  label.textContent = state === "syncing" ? "Saving..." : state === "synced" ? "Live" : "Offline";
+}
+
+async function seedFirebase() {
+  document.getElementById("loading-msg").textContent = "Seeding 116 sites to Firebase...";
+  const batch = writeBatch(db);
+  SEED_DATA.forEach(site => {
+    batch.set(doc(db, "sites", site.id), site);
+  });
+  await batch.commit();
+  document.getElementById("fb-site-count").textContent = SEED_DATA.length;
+}
+
+window.forceSeedFirebase = async function() {
+  if (!confirm("This will overwrite all site data in Firebase with the original 116 sites. Continue?")) return;
+  await seedFirebase();
+  alert("Done — 116 sites seeded.");
+};
+
+async function loadSites() {
+  document.getElementById("loading-msg").textContent = "Loading site data...";
+  const snap = await getDocs(collection(db, "sites"));
+  if (snap.empty) {
+    await seedFirebase();
+    const snap2 = await getDocs(collection(db, "sites"));
+    snap2.forEach(d => sites.push(d.data()));
+  } else {
+    snap.forEach(d => sites.push(d.data()));
+    document.getElementById("fb-site-count").textContent = sites.length;
+  }
+
+  // Load settings
+  try {
+    const sSnap = await getDoc(doc(db, "config", "settings"));
+    if (sSnap.exists()) settings = { ...settings, ...sSnap.data() };
+  } catch(e) {}
+
+  document.getElementById("loading-screen").style.display = "none";
+  populateFilterDropdowns();
+  filtered = [...sites];
+  applyFilters();
+  renderDashboard();
+  keepalive();
+}
+
+async function saveSite(site) {
+  setSyncState("syncing");
+  try {
+    await setDoc(doc(db, "sites", site.id), site);
+    setSyncState("synced");
+  } catch(e) {
+    setSyncState("offline");
+  }
+}
+
+window.saveSettings = async function() {
+  settings.amberMiss = parseInt(document.getElementById("s-amber-miss").value) || 2;
+  settings.redMiss = parseInt(document.getElementById("s-red-miss").value) || 4;
+  settings.regDeadline = document.getElementById("s-reg-deadline").value;
+  settings.yearEnd = document.getElementById("s-year-end").value;
+  settings.checkinFreq = parseInt(document.getElementById("s-checkin-freq").value) || 30;
+  try { await setDoc(doc(db, "config", "settings"), settings); } catch(e) {}
+  renderAll();
+};
+
+async function keepalive() {
+  try {
+    const lastKey = "xsite_keepalive";
+    const last = localStorage.getItem(lastKey);
+    const now = Date.now();
+    if (!last || now - parseInt(last) > 7 * 24 * 60 * 60 * 1000) {
+      await getDoc(doc(db, "config", "keepalive"));
+      await setDoc(doc(db, "config", "keepalive"), { ts: new Date().toISOString() });
+      localStorage.setItem(lastKey, String(now));
+    }
+    const d = new Date(parseInt(localStorage.getItem(lastKey) || now));
+    document.getElementById("last-keepalive").textContent = d.toLocaleDateString();
+  } catch(e) {}
+}
+
+function getStagesDone(site) {
+  return STAGES.filter(st => st.check(site)).length;
+}
+
+function getStatus(site) {
+  const stages = getStagesDone(site);
+  if (stages === 0) return "gray";
+  if (site.consecutive_missed >= settings.redMiss) return "red";
+  if (!site.xsite_app_registered && new Date() > new Date(settings.regDeadline)) return "red";
+  if (site.consecutive_missed >= settings.amberMiss) return "amber";
+  if (stages >= 5) return "green";
+  return "navy";
+}
+
+function statusBadge(status) {
+  const map = { green: ["badge-green","On Track"], amber: ["badge-amber","At Risk"], red: ["badge-red","Critical"], gray: ["badge-gray","Not Started"], navy: ["badge-navy","In Progress"] };
+  const [cls, label] = map[status] || map.gray;
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function stageDots(site) {
+  const dots = STAGES.map((st, i) => {
+    const done = st.check(site);
+    return `<div class="stage-dot ${done ? "done" : "pending"}" data-tip="${i+1}. ${st.label}">${i+1}</div>`;
+  }).join("");
+  return `<div class="stage-dots">${dots}<span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${getStagesDone(site)}/7</span></div>`;
+}
+
+window.showTab = function(tab) {
+  document.querySelectorAll(".panel-view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("view-" + tab).classList.add("active");
+  document.getElementById("tab-" + tab).classList.add("active");
+  if (tab === "dashboard") renderDashboard();
+  if (tab === "tracker") renderTable();
+};
+
+function renderDashboard() {
+  const total = sites.length;
+  const byStatus = { green: 0, amber: 0, red: 0, gray: 0, navy: 0 };
+  let registered = 0, totalStages = 0;
+  sites.forEach(s => {
+    const st = getStatus(s);
+    byStatus[st] = (byStatus[st] || 0) + 1;
+    if (s.xsite_app_registered) registered++;
+    totalStages += getStagesDone(s);
+  });
+  const onTrack = (byStatus.green || 0) + (byStatus.navy || 0);
+  const pctOnTrack = Math.round(onTrack / total * 100);
+  const pctReg = Math.round(registered / total * 100);
+  const avgStages = (totalStages / total).toFixed(1);
+
+  document.getElementById("metrics-row").innerHTML = `
+    <div class="metric-card"><div class="metric-label">Total Sites</div><div class="metric-value">${total}</div><div class="metric-sub">Americas</div></div>
+    <div class="metric-card"><div class="metric-label">On Track</div><div class="metric-value" style="color:var(--green)">${onTrack}</div><div class="metric-sub">${pctOnTrack}% of portfolio</div><div class="metric-bar"><div class="metric-bar-fill" style="width:${pctOnTrack}%;background:var(--green)"></div></div></div>
+    <div class="metric-card"><div class="metric-label">At Risk</div><div class="metric-value" style="color:var(--amber)">${byStatus.amber || 0}</div><div class="metric-sub">Needs attention</div></div>
+    <div class="metric-card"><div class="metric-label">Critical</div><div class="metric-value" style="color:var(--red)">${byStatus.red || 0}</div><div class="metric-sub">Immediate action</div></div>
+    <div class="metric-card"><div class="metric-label">App Registered</div><div class="metric-value" style="color:var(--dsv-orange)">${registered}</div><div class="metric-sub">${pctReg}% registered</div><div class="metric-bar"><div class="metric-bar-fill" style="width:${pctReg}%;background:var(--dsv-orange)"></div></div></div>
+    <div class="metric-card"><div class="metric-label">Avg Stage</div><div class="metric-value">${avgStages}</div><div class="metric-sub">of 7 stages</div></div>
+  `;
+
+  let alerts = "";
+  if (byStatus.red > 0) alerts += `<div class="alert-banner">&#128308; ${byStatus.red} site${byStatus.red > 1 ? "s" : ""} in CRITICAL status. <a href="#" onclick="showTab('tracker');document.getElementById('f-status').value='red';applyFilters();return false;" style="margin-left:8px;color:var(--red);font-weight:700;">View &rarr;</a></div>`;
+  if (byStatus.amber > 0) alerts += `<div class="alert-banner amber">&#128992; ${byStatus.amber} site${byStatus.amber > 1 ? "s" : ""} at risk. <a href="#" onclick="showTab('tracker');document.getElementById('f-status').value='amber';applyFilters();return false;" style="margin-left:8px;color:var(--amber);font-weight:700;">View &rarr;</a></div>`;
+  document.getElementById("alert-zone").innerHTML = alerts;
+
+  const regions = ["USA", "Canada", "LATAM"];
+  document.getElementById("region-grid").innerHTML = regions.map(r => {
+    const rs = sites.filter(s => s.region === r);
+    if (!rs.length) return "";
+    const items = [
+      ["Training", rs.filter(s => s.training_status === "completed").length],
+      ["Self-assessment", rs.filter(s => s.self_assessment_done).length],
+      ["Action plan", rs.filter(s => s.action_plan_created).length],
+      ["Check-ins", rs.filter(s => s.checkins_held > 0).length],
+      ["App registered", rs.filter(s => s.xsite_app_registered).length],
+    ];
+    const rows = items.map(([label, count]) => {
+      const pct = Math.round(count / rs.length * 100);
+      return `<div class="progress-row"><span class="progress-label">${label}</span><div class="progress-bar-outer"><div class="progress-bar-inner" style="width:${pct}%"></div></div><span class="progress-pct">${pct}%</span></div>`;
+    }).join("");
+    return `<div class="region-card"><h3>${r} <span style="font-weight:400;color:var(--text-muted);font-size:12px;">${rs.length} sites</span></h3>${rows}</div>`;
+  }).join("");
+
+  const ciNames = [...new Set(sites.map(s => s.ci_contact))].sort();
+  document.getElementById("ci-progress-bars").innerHTML = ciNames.map(ci => {
+    const cs = sites.filter(s => s.ci_contact === ci);
+    const done = cs.filter(s => getStagesDone(s) >= 5).length;
+    const pct = Math.round(done / cs.length * 100);
+    const atRisk = cs.filter(s => ["amber","red"].includes(getStatus(s))).length;
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:600;">${ci}</span>
+        <span style="font-size:12px;color:var(--text-muted);">${done}/${cs.length} advanced &bull; ${atRisk > 0 ? `<span style="color:var(--amber)">${atRisk} at risk</span>` : `<span style="color:var(--green)">none at risk</span>`}</span>
+      </div>
+      <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--dsv-navy);border-radius:4px;transition:width 0.3s;"></div></div>
+    </div>`;
+  }).join("");
+}
+
+window.applyFilters = function() {
+  const region = document.getElementById("f-region").value;
+  const ci = document.getElementById("f-ci").value;
+  const status = document.getElementById("f-status").value;
+  const country = document.getElementById("f-country").value;
+  const search = document.getElementById("f-search").value.toLowerCase();
+  filtered = sites.filter(s => {
+    if (region && s.region !== region) return false;
+    if (ci && s.ci_contact !== ci) return false;
+    if (country && s.country !== country) return false;
+    if (status && getStatus(s) !== status) return false;
+    if (search && !s.name.toLowerCase().includes(search) && !s.lmpd.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  filtered.sort((a, b) => {
+    let va = sortCol === "status" ? getStatus(a) : (a[sortCol] || "");
+    let vb = sortCol === "status" ? getStatus(b) : (b[sortCol] || "");
+    return va < vb ? -sortDir : va > vb ? sortDir : 0;
+  });
+  currentPage = 1;
+  document.getElementById("filter-count").textContent = `${filtered.length} of ${sites.length} sites`;
+  renderTable();
+};
+
+window.clearFilters = function() {
+  ["f-region","f-ci","f-status","f-country"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("f-search").value = "";
+  applyFilters();
+};
+
+window.sortBy = function(col) {
+  if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+  applyFilters();
+};
+
+function populateFilterDropdowns() {
+  const cis = [...new Set(sites.map(s => s.ci_contact))].sort();
+  const countries = [...new Set(sites.map(s => s.country))].sort();
+  const ciSel = document.getElementById("f-ci");
+  cis.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; ciSel.appendChild(o); });
+  const ctSel = document.getElementById("f-country");
+  countries.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; ctSel.appendChild(o); });
+}
+
+function renderTable() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filtered.slice(start, start + PAGE_SIZE);
+  document.getElementById("table-body").innerHTML = page.map(site => {
+    const st = getStatus(site);
+    return `<tr>
+      <td class="site-name"><a href="#" onclick="openSite('${site.id}');return false;" style="color:var(--dsv-navy);text-decoration:none;">${site.name}</a></td>
+      <td class="lmpd-code">${site.lmpd}</td>
+      <td>${site.country}</td>
+      <td>${site.ci_contact}</td>
+      <td>${stageDots(site)}</td>
+      <td>${statusBadge(st)}</td>
+      <td style="text-align:center;">${site.xsite_app_registered ? '<span style="color:var(--green);font-weight:700;">&#10003;</span>' : '<span style="color:var(--border);">&#8212;</span>'}</td>
+      <td><span style="font-size:12px;color:var(--text-muted);max-width:140px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${site.notes || ""}">${site.notes || "—"}</span></td>
+      <td><button class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="openSite('${site.id}')">Edit</button></td>
+    </tr>`;
+  }).join("");
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, total);
+  let btns = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?"disabled":""}>&#8249; Prev</button>`;
+  for (let p = Math.max(1, currentPage-2); p <= Math.min(totalPages, currentPage+2); p++) {
+    btns += `<button class="page-btn ${p===currentPage?"active":""}" onclick="goPage(${p})">${p}</button>`;
+  }
+  btns += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?"disabled":""}>Next &#8250;</button>`;
+  document.getElementById("pagination").innerHTML = `<span class="page-info">Showing ${start}–${end} of ${total} sites</span><div class="page-btns">${btns}</div>`;
+}
+
+window.goPage = function(p) {
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (p < 1 || p > totalPages) return;
+  currentPage = p;
+  renderTable();
+};
+
+window.openSite = function(id) {
+  const site = sites.find(s => s.id === id);
+  if (!site) return;
+  document.getElementById("modal-title").textContent = site.name + " — " + site.lmpd;
+  const st = getStatus(site);
+  document.getElementById("modal-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="field-group"><div class="field-label">Region</div><div>${site.region}</div></div>
+      <div class="field-group"><div class="field-label">Country</div><div>${site.country}</div></div>
+      <div class="field-group"><div class="field-label">CI Contact</div><div>${site.ci_contact}</div></div>
+      <div class="field-group"><div class="field-label">Status</div><div>${statusBadge(st)}</div></div>
+    </div>
+    <h4 style="font-size:13px;font-weight:700;color:var(--dsv-navy);margin-bottom:10px;">Programme Stages</h4>
+    ${STAGES.map((stage, i) => {
+      const done = stage.check(site);
+      const dateKeys = ["training_date","self_assessment_date","action_plan_date","last_checkin_date","","spot_check_date","xsite_registration_date"];
+      const boolKeys = ["","self_assessment_done","action_plan_created","","action_tracker_progress","spot_check_done","xsite_app_registered"];
+      const dk = dateKeys[i], bk = boolKeys[i];
+      let ctrl = "";
+      if (i === 0) {
+        ctrl = `<select onchange="updateField('${id}','training_status',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:3px;">
+          <option value="scheduled" ${site.training_status==="scheduled"?"selected":""}>Scheduled</option>
+          <option value="in_progress" ${site.training_status==="in_progress"?"selected":""}>In Progress</option>
+          <option value="completed" ${site.training_status==="completed"?"selected":""}>Completed</option>
+        </select>`;
+      } else if (bk) {
+        ctrl = `<input type="checkbox" ${done?"checked":""} onchange="updateField('${id}','${bk}',this.checked)${dk ? `;updateField('${id}','${dk}',this.checked?new Date().toISOString().split('T')[0]:null)` : ""}">`;
+      }
+      return `<div class="stage-row">
+        <div class="stage-num" style="${done?"background:var(--green)":""}">${i+1}</div>
+        <div class="stage-name">${stage.label}</div>
+        ${dk ? `<input type="date" value="${site[dk] || ""}" onchange="updateField('${id}','${dk}',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:3px;">` : "<span></span>"}
+        ${ctrl}
+      </div>`;
+    }).join("")}
+    <div style="margin-top:14px;">
+      <div class="field-label" style="margin-bottom:6px;">Check-ins</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text-muted);">Held:</span>
+        <input type="number" min="0" value="${site.checkins_held || 0}" onchange="updateField('${id}','checkins_held',parseInt(this.value)||0)" style="width:55px;">
+        <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">Consecutive missed:</span>
+        <input type="number" min="0" value="${site.consecutive_missed || 0}" onchange="updateField('${id}','consecutive_missed',parseInt(this.value)||0)" style="width:50px;">
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <div class="field-label" style="margin-bottom:6px;">Notes</div>
+      <textarea rows="3" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:var(--font);resize:vertical;" onchange="updateField('${id}','notes',this.value)">${site.notes || ""}</textarea>
+    </div>
+    <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="saveAndClose('${id}')">Save &amp; Close</button>
+    </div>
+  `;
+  document.getElementById("site-modal").classList.add("open");
+};
+
+window.updateField = function(id, key, value) {
+  const site = sites.find(s => s.id === id);
+  if (!site) return;
+  site[key] = value;
+  site.history = site.history || [];
+  site.history.push({ date: new Date().toISOString().split("T")[0], field: key, value: String(value) });
+};
+
+window.saveAndClose = async function(id) {
+  const site = sites.find(s => s.id === id);
+  if (site) await saveSite(site);
+  closeModal();
+};
+
+window.closeModal = function() {
+  document.getElementById("site-modal").classList.remove("open");
+  renderAll();
+};
+
+function renderAll() {
+  renderDashboard();
+  applyFilters();
+}
+
+// AI
+window.sendAI = async function() {
+  const input = document.getElementById("ai-input");
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  addAIMsg(q, "user");
+  const loadId = "load-" + Date.now();
+  addAIMsg("Analyzing live data...", "assistant loading", loadId);
+  const summary = buildDataSummary();
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: `You are an XSite programme analyst for DSV Americas, supporting Polina Fox (Sr. Director CI&PO Americas). You have access to live Firebase data for all 116 XSite sites across USA, Canada, and LATAM. CI contacts: Rob Johns (29 US sites), Christine Hallier (27 US sites), Irving Ogaz (27 US/Mexico sites), Matthew Burris (17 US sites), Angela Ruiz (15 LATAM sites), Matt Walsh (1 Canada site). Year-end target: 100% completion by Dec 31, 2026. XSite app registration RED deadline: July 1, 2026. Programme stages: 1) Training completed, 2) Self-assessment done, 3) Action plan created, 4) Check-ins started, 5) Action tracker progress, 6) Spot check done, 7) XSite app registered. Be concise, specific, and actionable. Current data: ${summary}`,
+        messages: [{ role: "user", content: q }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.map(c => c.text || "").join("") || "No response received.";
+    document.getElementById(loadId)?.remove();
+    addAIMsg(text, "assistant");
+  } catch(e) {
+    document.getElementById(loadId)?.remove();
+    addAIMsg("Error connecting to AI. Please try again.", "assistant");
+  }
+};
+
+function buildDataSummary() {
+  const byStatus = {};
+  let registered = 0;
+  sites.forEach(s => {
+    const st = getStatus(s);
+    byStatus[st] = (byStatus[st] || 0) + 1;
+    if (s.xsite_app_registered) registered++;
+  });
+  const ciStats = {};
+  sites.forEach(s => {
+    if (!ciStats[s.ci_contact]) ciStats[s.ci_contact] = { total: 0, advanced: 0, atRisk: 0 };
+    ciStats[s.ci_contact].total++;
+    if (getStagesDone(s) >= 4) ciStats[s.ci_contact].advanced++;
+    if (["amber","red"].includes(getStatus(s))) ciStats[s.ci_contact].atRisk++;
+  });
+  return JSON.stringify({ total: sites.length, byStatus, registered, ciStats });
+}
+
+function addAIMsg(text, type, id) {
+  const div = document.createElement("div");
+  div.className = `ai-msg ${type}`;
+  if (id) div.id = id;
+  div.textContent = text;
+  const msgs = document.getElementById("ai-messages");
+  msgs.appendChild(div);
+  msgs.scrollTop = 9999;
+}
+
+window.askQuick = function(q) {
+  document.getElementById("ai-input").value = q;
+  sendAI();
+};
+
+// Export
+window.exportCSV = function() {
+  const headers = ["Site Name","LMPD","Country","Region","CI Contact","Training","Self-Assessment","Action Plan","Check-ins","Action Tracker","Spot Check","XSite Registered","Stages Done","Status","Notes"];
+  const rows = sites.map(s => [s.name, s.lmpd, s.country, s.region, s.ci_contact, s.training_status, s.self_assessment_done?"Yes":"No", s.action_plan_created?"Yes":"No", s.checkins_held||0, s.action_tracker_progress?"Yes":"No", s.spot_check_done?"Yes":"No", s.xsite_app_registered?"Yes":"No", getStagesDone(s), getStatus(s), s.notes||""]);
+  const csv = [headers,...rows].map(r => r.map(v => `"${String(v).replace(/"/g,"\"\"")}"` ).join(",")).join("\n");
+  download("XSite_Americas_" + new Date().toISOString().split("T")[0] + ".csv", csv, "text/csv");
+};
+
+window.exportJSON = function() {
+  download("XSite_Americas_Backup_" + new Date().toISOString().split("T")[0] + ".json", JSON.stringify(sites, null, 2), "application/json");
+};
+
+window.exportSummaryHTML = function() {
+  const byStatus = {};
+  let registered = 0;
+  sites.forEach(s => { const st = getStatus(s); byStatus[st] = (byStatus[st]||0)+1; if(s.xsite_app_registered) registered++; });
+  const onTrack = (byStatus.green||0)+(byStatus.navy||0);
+  const html = `<html><body style="font-family:Arial;padding:24px;max-width:800px;"><h1 style="color:#002664;">XSite Americas Programme Status</h1><p style="color:#666;">Generated: ${new Date().toLocaleDateString()} | Sr. Director CI&PO: Polina Fox</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="background:#002664;color:white;"><th style="padding:8px;text-align:left;">Metric</th><th style="padding:8px;text-align:right;">Value</th></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Total Sites</td><td style="padding:8px;text-align:right;">${sites.length}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">On Track</td><td style="padding:8px;text-align:right;color:#22863a;">${onTrack}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">At Risk</td><td style="padding:8px;text-align:right;color:#b45309;">${byStatus.amber||0}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Critical</td><td style="padding:8px;text-align:right;color:#c0392b;">${byStatus.red||0}</td></tr><tr><td style="padding:8px;">App Registered</td><td style="padding:8px;text-align:right;color:#FF6E00;">${registered}</td></tr></table></body></html>`;
+  download("XSite_Status_Report_" + new Date().toISOString().split("T")[0] + ".html", html, "text/html");
+};
+
+function download(filename, content, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], {type}));
+  a.download = filename;
+  a.click();
+}
+
+// Start
+loadSites();
+</script>
+</body>
+</html>
