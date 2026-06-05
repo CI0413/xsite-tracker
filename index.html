@@ -12,8 +12,8 @@
   --dsv-navy-pale: #e8edf5;
   --green: #22863a;
   --green-bg: #e6f4ea;
-  --amber: #b45309;
-  --amber-bg: #fef3c7;
+  --amber: #FF6E00;
+  --amber-bg: #FF6E00;
   --red: #c0392b;
   --red-bg: #fdecea;
   --blue: #1d6fa4;
@@ -80,7 +80,7 @@ input[type=text] { width: 200px; }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
 .badge-green { background: var(--green-bg); color: var(--green); }
-.badge-amber { background: var(--amber-bg); color: var(--amber); }
+.badge-amber { background: var(--amber); color: var(--dsv-navy); }
 .badge-red { background: var(--red-bg); color: var(--red); }
 .badge-gray { background: var(--gray-bg); color: var(--gray); }
 .badge-navy { background: var(--dsv-navy-pale); color: var(--dsv-navy); }
@@ -147,7 +147,7 @@ td.lmpd-code { font-family: "Courier New", monospace; font-size: 12px; color: va
 .stage-name { flex: 1; font-size: 13px; font-weight: 500; }
 
 .alert-banner { background: var(--red-bg); border: 1px solid #fca5a5; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: var(--red); display: flex; align-items: center; gap: 8px; }
-.alert-banner.amber { background: var(--amber-bg); border-color: #fcd34d; color: var(--amber); }
+.alert-banner.amber { background: var(--amber); border-color: #e56200; color: var(--dsv-navy); }
 
 .pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid var(--border); background: #fafafa; }
 .page-info { font-size: 12px; color: var(--text-muted); }
@@ -203,11 +203,23 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
 
 .consec-banner { padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .consec-banner.ok { background: var(--green-bg); color: var(--green); }
-.consec-banner.amber { background: var(--amber-bg); color: var(--amber); }
+.consec-banner.amber { background: var(--amber); color: var(--dsv-navy); }
 .consec-banner.red { background: var(--red-bg); color: var(--red); }
 
 .email-sent-toast { position: fixed; bottom: 24px; right: 24px; background: var(--dsv-navy); color: white; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; }
 @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+
+.my-sites-bar { background: var(--dsv-navy-pale); border-bottom: 1px solid var(--border); padding: 8px 24px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.my-sites-bar label { font-weight: 600; color: var(--dsv-navy); }
+.my-sites-bar select { font-size: 13px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font); }
+.my-sites-bar .view-all-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--dsv-navy); background: white; color: var(--dsv-navy); font-size: 12px; cursor: pointer; font-family: var(--font); font-weight: 600; }
+.my-sites-bar .view-all-btn:hover { background: var(--dsv-navy-pale); }
+.my-sites-prompt-overlay { position: fixed; inset: 0; background: rgba(0,38,100,0.7); z-index: 400; display: flex; align-items: center; justify-content: center; }
+.my-sites-prompt { background: white; border-radius: 12px; padding: 32px; width: 400px; max-width: 95vw; text-align: center; }
+.my-sites-prompt h2 { font-size: 20px; color: var(--dsv-navy); margin-bottom: 8px; }
+.my-sites-prompt p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.my-sites-prompt select { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); margin-bottom: 16px; }
+.my-sites-prompt .prompt-btns { display: flex; gap: 10px; justify-content: center; }
 </style>
 </head>
 <body>
@@ -221,7 +233,7 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
 <div id="header">
   <div>
     <h1>X<span>Site</span> Americas Tracker</h1>
-    <div class="header-meta">CI&amp;PO Programme Operations &mdash; Americas</div>
+    <div class="header-meta">CI&amp;PO Program Operations &mdash; Americas</div>
   </div>
   <div class="header-right">
     <div class="sync-status">
@@ -229,8 +241,7 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
       <span id="sync-label" style="color:rgba(255,255,255,0.7);font-size:12px;">Live</span>
     </div>
     <div class="header-actions">
-      <button class="btn btn-secondary" onclick="showTab('ai')">&#129302; Ask AI</button>
-      <button class="btn btn-primary" onclick="showTab('export')">&#8595; Export</button>
+      <button class="btn btn-primary" onclick="showTab('export')">&#8645; Export / Import</button>
     </div>
   </div>
 </div>
@@ -238,9 +249,32 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
 <div id="tabs">
   <div class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</div>
   <div class="tab" onclick="showTab('tracker')" id="tab-tracker">Site Tracker</div>
-  <div class="tab" onclick="showTab('ai')" id="tab-ai">AI Analysis</div>
-  <div class="tab" onclick="showTab('export')" id="tab-export">Export &amp; Reports</div>
+  <div class="tab" onclick="showTab('export')" id="tab-export">Export / Import</div>
   <div class="tab" onclick="showTab('settings')" id="tab-settings">Settings</div>
+</div>
+
+<div class="my-sites-bar" id="my-sites-bar">
+  <label>&#128100; Viewing as:</label>
+  <select id="my-sites-select" onchange="setMySites(this.value)">
+    <option value="">All sites</option>
+  </select>
+  <button class="view-all-btn" onclick="setMySites('')" id="view-all-btn" style="display:none;">View All Sites</button>
+  <span id="my-sites-count" style="font-size:12px;color:var(--text-muted);margin-left:4px;"></span>
+  <button class="view-all-btn" style="margin-left:auto;" onclick="showNamePrompt()">&#9998; Change</button>
+</div>
+
+<div class="my-sites-prompt-overlay" id="name-prompt" style="display:none;">
+  <div class="my-sites-prompt">
+    <h2>Welcome to XSite Americas</h2>
+    <p>Select your name to default the tracker to your sites. You can always view all sites using the "View All" button.</p>
+    <select id="prompt-name-select">
+      <option value="">-- Select your name --</option>
+    </select>
+    <div class="prompt-btns">
+      <button class="btn btn-primary" onclick="confirmMyName()">Confirm</button>
+      <button class="btn btn-outline" onclick="skipNamePrompt()">View All Sites</button>
+    </div>
+  </div>
 </div>
 
 <div id="main">
@@ -296,30 +330,6 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
   </div>
 </div>
 
-<div id="view-ai" class="panel-view">
-  <div class="ai-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <h3 style="font-size:15px;font-weight:700;color:var(--dsv-navy);">AI Programme Analyst</h3>
-      <span style="font-size:12px;color:var(--text-muted);">Powered by Claude &bull; Reads live Firebase data</span>
-    </div>
-    <div class="ai-quick-btns">
-      <button class="ai-quick" onclick="askQuick('What sites are most at risk?')">At-risk sites</button>
-      <button class="ai-quick" onclick="askQuick('Summarize progress by CI contact')">CI summary</button>
-      <button class="ai-quick" onclick="askQuick('Which LATAM sites need immediate attention?')">LATAM focus</button>
-      <button class="ai-quick" onclick="askQuick('App registration status?')">App registration</button>
-      <button class="ai-quick" onclick="askQuick('Generate a status update email for Jeff Rice')">Status email</button>
-      <button class="ai-quick" onclick="askQuick('Which sites have had the most no-shows?')">No-show report</button>
-    </div>
-    <div class="ai-messages" id="ai-messages">
-      <div class="ai-msg assistant">Hello Polina! I have full visibility into all 116 XSite Americas sites including check-in history and escalation status. Ask me anything.</div>
-    </div>
-    <div class="ai-input-row">
-      <input type="text" id="ai-input" placeholder="Ask about progress, no-shows, escalations..." onkeydown="if(event.key==='Enter') sendAI()">
-      <button class="btn btn-primary" onclick="sendAI()">Send</button>
-    </div>
-  </div>
-</div>
-
 <div id="view-export" class="panel-view">
   <div class="export-panel">
     <h3 style="font-size:15px;font-weight:700;color:var(--dsv-navy);margin-bottom:6px;">Export &amp; Reports</h3>
@@ -362,9 +372,9 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
     <div class="settings-card">
       <h3>Escalation Emails</h3>
       <div class="setting-row"><span class="setting-name">Level 1 — Director email</span><input type="email" id="s-director-email" value="christine.hallier@dsv.com" onchange="saveSettings()"></div>
-      <div class="setting-row"><span class="setting-name">Level 2 — Programme lead email</span><input type="email" id="s-lead-email" value="polina.fox@dsv.com" onchange="saveSettings()"></div>
+      <div class="setting-row"><span class="setting-name">Level 2 — Program lead email</span><input type="email" id="s-lead-email" value="polina.fox@dsv.com" onchange="saveSettings()"></div>
       <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
-        <span class="setting-name" style="font-size:11px;color:var(--text-muted);">AMBER = director only &bull; RED = director + programme lead</span>
+        <span class="setting-name" style="font-size:11px;color:var(--text-muted);">AMBER = director only &bull; RED = director + program lead</span>
       </div>
       <div style="margin-top:10px;">
         <button class="btn btn-outline btn-sm" onclick="testEmail()">Send test email</button>
@@ -372,7 +382,7 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
     </div>
     <div class="settings-card">
       <h3>Team Structure</h3>
-      <div class="setting-row"><span class="setting-name">Programme Owner</span><span class="setting-val">Polina Fox</span></div>
+      <div class="setting-row"><span class="setting-name">Program Owner</span><span class="setting-val">Polina Fox</span></div>
       <div class="setting-row"><span class="setting-name">Executive</span><span class="setting-val">Jeff Rice</span></div>
       <div class="setting-row"><span class="setting-name">Total Sites</span><span class="setting-val">116</span></div>
     </div>
@@ -398,7 +408,7 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
     <h2 id="modal-title"></h2>
     <div class="modal-subtitle" id="modal-subtitle"></div>
     <div class="modal-tabs">
-      <div class="modal-tab active" onclick="switchModalTab('stages')" id="mtab-stages">Programme Stages</div>
+      <div class="modal-tab active" onclick="switchModalTab('stages')" id="mtab-stages">Program Stages</div>
       <div class="modal-tab" onclick="switchModalTab('checkins')" id="mtab-checkins">Check-in Log</div>
     </div>
     <div id="modal-pane-stages" class="modal-pane active"></div>
@@ -603,7 +613,7 @@ async function loadSites() {
   else { snap.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);}); document.getElementById("fb-site-count").textContent=sites.length; }
   try { const ss=await getDoc(doc(db,"config","settings")); if(ss.exists()) settings={...settings,...ss.data()}; applySettingsToUI(); } catch(e){}
   document.getElementById("loading-screen").style.display="none";
-  populateFilterDropdowns(); filtered=[...sites]; applyFilters(); renderDashboard(); keepalive();
+  populateFilterDropdowns(); initMySites(); filtered=[...sites]; applyFilters(); renderDashboard(); keepalive();
 }
 
 function applySettingsToUI() {
@@ -683,7 +693,7 @@ function renderDashboard() {
   document.getElementById("metrics-row").innerHTML=`
     <div class="metric-card"><div class="metric-label">Total Sites</div><div class="metric-value">${total}</div><div class="metric-sub">Americas</div></div>
     <div class="metric-card"><div class="metric-label">On Track</div><div class="metric-value" style="color:var(--green)">${onTrack}</div><div class="metric-sub">${pctOnTrack}% of portfolio</div><div class="metric-bar"><div class="metric-bar-fill" style="width:${pctOnTrack}%;background:var(--green)"></div></div></div>
-    <div class="metric-card"><div class="metric-label">At Risk</div><div class="metric-value" style="color:var(--amber)">${byStatus.amber||0}</div><div class="metric-sub">Needs attention</div></div>
+    <div class="metric-card"><div class="metric-label">At Risk</div><div class="metric-value" style="color:var(--dsv-navy);background:var(--amber);padding:1px 4px;border-radius:3px;">${byStatus.amber||0}</div><div class="metric-sub">Needs attention</div></div>
     <div class="metric-card"><div class="metric-label">Critical</div><div class="metric-value" style="color:var(--red)">${byStatus.red||0}</div><div class="metric-sub">Immediate action</div></div>
     <div class="metric-card"><div class="metric-label">App Registered</div><div class="metric-value" style="color:var(--dsv-orange)">${registered}</div><div class="metric-sub">${pctReg}% registered</div><div class="metric-bar"><div class="metric-bar-fill" style="width:${pctReg}%;background:var(--dsv-orange)"></div></div></div>
     <div class="metric-card"><div class="metric-label">Avg Stage</div><div class="metric-value">${(totalStages/total).toFixed(1)}</div><div class="metric-sub">of 7 stages</div></div>`;
@@ -704,7 +714,7 @@ function renderDashboard() {
     const done=cs.filter(s=>getStagesDone(s)>=5).length;
     const pct=Math.round(done/cs.length*100);
     const atRisk=cs.filter(s=>["amber","red"].includes(getStatus(s))).length;
-    return `<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:13px;font-weight:600;">${ci}</span><span style="font-size:12px;color:var(--text-muted);">${done}/${cs.length} advanced &bull; ${atRisk>0?`<span style="color:var(--amber)">${atRisk} at risk</span>`:`<span style="color:var(--green)">none at risk</span>`}</span></div><div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--dsv-navy);border-radius:4px;"></div></div></div>`;
+    return `<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:13px;font-weight:600;">${ci}</span><span style="font-size:12px;color:var(--text-muted);">${done}/${cs.length} advanced &bull; ${atRisk>0?`<span style="color:var(--dsv-navy);background:var(--amber);padding:1px 4px;border-radius:3px;">${atRisk} at risk</span>`:`<span style="color:var(--green)">none at risk</span>`}</span></div><div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--dsv-navy);border-radius:4px;"></div></div></div>`;
   }).join("");
 }
 
@@ -754,7 +764,7 @@ function renderTable() {
     const consec=calcConsecutiveNoShows(log), days=daysSinceActivity(log);
     let ci=lastDate?`<span style="font-size:12px;">${lastDate}</span>`:`<span style="color:var(--text-muted);font-size:12px;">—</span>`;
     if(nextDate) ci+=`<br><span style="font-size:11px;color:var(--blue);">&#128197; ${nextDate}</span>`;
-    if(consec>0) ci+=`<br><span style="font-size:11px;color:${consec>=settings.redMiss?"var(--red)":"var(--amber)"};">${consec} no-show${consec>1?"s":""}</span>`;
+    if(consec>0) ci+=`<br><span style="font-size:11px;color:${consec>=settings.redMiss?"var(--red)":"var(--dsv-navy)"};background:${consec>=settings.redMiss?"transparent":"var(--amber)"};padding:${consec>=settings.redMiss?"0":"1px 4px"};border-radius:3px;">${consec} no-show${consec>1?"s":""}</span>`;
     if(days!==null && days>=settings.stagnantDays && !consec) ci+=`<br><span style="font-size:11px;color:var(--amber);">${days}d stagnant</span>`;
     return `<tr>
       <td class="site-name"><a href="#" onclick="openSite('${site.id}');return false;" style="color:var(--dsv-navy);text-decoration:none;">${site.name}</a></td>
@@ -966,57 +976,13 @@ window.closeModal = function() {
 
 function renderAll(){renderDashboard();applyFilters();}
 
-// ---- AI ----
-window.sendAI = async function() {
-  const input=document.getElementById("ai-input"), q=input.value.trim(); if(!q) return;
-  input.value=""; addAIMsg(q,"user");
-  const loadId="load-"+Date.now(); addAIMsg("Analyzing...","assistant loading",loadId);
-  try {
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",max_tokens:1000,
-      system:`You are an XSite programme analyst for DSV Americas supporting Polina Fox. 116 sites across USA, Canada, LATAM. Escalation: AMBER=${settings.amberMiss} consecutive no-shows or ${settings.stagnantDays} days stagnant; RED=${settings.redMiss} consecutive no-shows. Reschedules do NOT reset the no-show streak — only an attended meeting resets it. AMBER emails director only; RED emails director + Polina. Tracker: ${TRACKER_URL}. Data: ${JSON.stringify(buildDataSummary())}`,
-      messages:[{role:"user",content:q}]
-    })});
-    const data=await resp.json();
-    document.getElementById(loadId)?.remove();
-    addAIMsg(data.content?.map(c=>c.text||"").join("")||"No response.","assistant");
-  } catch(e){document.getElementById(loadId)?.remove();addAIMsg("Error connecting to AI.","assistant");}
-};
 
-function buildDataSummary() {
-  const byStatus={},ciStats={};let registered=0;
-  sites.forEach(s=>{
-    const st=getStatus(s);byStatus[st]=(byStatus[st]||0)+1;
-    if(s.xsite_app_registered)registered++;
-    if(!ciStats[s.ci_contact])ciStats[s.ci_contact]={total:0,advanced:0,atRisk:0,totalNoShows:0,consecNoShows:0};
-    ciStats[s.ci_contact].total++;
-    if(getStagesDone(s)>=4)ciStats[s.ci_contact].advanced++;
-    if(["amber","red"].includes(st))ciStats[s.ci_contact].atRisk++;
-    ciStats[s.ci_contact].totalNoShows+=(s.checkin_log||[]).filter(e=>e.type==="noshow").length;
-    ciStats[s.ci_contact].consecNoShows+=calcConsecutiveNoShows(s.checkin_log);
-  });
-  return{total:sites.length,byStatus,registered,ciStats};
-}
-
-function addAIMsg(text,type,id){
-  const div=document.createElement("div");div.className=`ai-msg ${type}`;if(id)div.id=id;div.textContent=text;
-  const msgs=document.getElementById("ai-messages");msgs.appendChild(div);msgs.scrollTop=9999;
-}
-window.askQuick=function(q){document.getElementById("ai-input").value=q;sendAI();};
-
-// ---- EXPORT ----
-window.exportCSV=function(){
-  const headers=["Site Name","LMPD","Country","Region","CI Contact","Training","Self-Assessment","Action Plan","Attended","Total No-shows","Consecutive No-shows","Stagnant Days","App Registered","Stages Done","Status","Escalation","Notes"];
-  const rows=sites.map(s=>{const log=s.checkin_log||[];const days=daysSinceActivity(log);return[s.name,s.lmpd,s.country,s.region,s.ci_contact,s.training_status,s.self_assessment_done?"Yes":"No",s.action_plan_created?"Yes":"No",log.filter(e=>e.type==="attended").length,log.filter(e=>e.type==="noshow").length,calcConsecutiveNoShows(log),days!==null?days:"",s.xsite_app_registered?"Yes":"No",getStagesDone(s),getStatus(s),getEscalationLevel(s)||"none",s.notes||""];});
-  const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
-  download("XSite_Americas_"+new Date().toISOString().split("T")[0]+".csv",csv,"text/csv");
-};
 window.exportJSON=function(){download("XSite_Backup_"+new Date().toISOString().split("T")[0]+".json",JSON.stringify(sites,null,2),"application/json");};
 window.exportSummaryHTML=function(){
   const byStatus={};let registered=0;
   sites.forEach(s=>{const st=getStatus(s);byStatus[st]=(byStatus[st]||0)+1;if(s.xsite_app_registered)registered++;});
   const onTrack=(byStatus.green||0)+(byStatus.navy||0);
-  const html=`<html><body style="font-family:Arial;padding:24px;max-width:800px;"><h1 style="color:#002664;">XSite Americas Programme Status</h1><p style="color:#666;">Generated: ${new Date().toLocaleDateString()} | Sr. Director CI&PO: Polina Fox</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="background:#002664;color:white;"><th style="padding:8px;text-align:left;">Metric</th><th style="padding:8px;text-align:right;">Value</th></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Total Sites</td><td style="padding:8px;text-align:right;">${sites.length}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">On Track</td><td style="padding:8px;text-align:right;color:#22863a;">${onTrack}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">At Risk (AMBER)</td><td style="padding:8px;text-align:right;color:#b45309;">${byStatus.amber||0}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Critical (RED)</td><td style="padding:8px;text-align:right;color:#c0392b;">${byStatus.red||0}</td></tr><tr><td style="padding:8px;">App Registered</td><td style="padding:8px;text-align:right;color:#FF6E00;">${registered}</td></tr></table></body></html>`;
+  const html=`<html><body style="font-family:Arial;padding:24px;max-width:800px;"><h1 style="color:#002664;">XSite Americas Program Status</h1><p style="color:#666;">Generated: ${new Date().toLocaleDateString()} | Sr. Director CI&PO: Polina Fox</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="background:#002664;color:white;"><th style="padding:8px;text-align:left;">Metric</th><th style="padding:8px;text-align:right;">Value</th></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Total Sites</td><td style="padding:8px;text-align:right;">${sites.length}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">On Track</td><td style="padding:8px;text-align:right;color:#22863a;">${onTrack}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">At Risk (AMBER)</td><td style="padding:8px;text-align:right;color:#b45309;">${byStatus.amber||0}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;">Critical (RED)</td><td style="padding:8px;text-align:right;color:#c0392b;">${byStatus.red||0}</td></tr><tr><td style="padding:8px;">App Registered</td><td style="padding:8px;text-align:right;color:#FF6E00;">${registered}</td></tr></table></body></html>`;
   download("XSite_Report_"+new Date().toISOString().split("T")[0]+".html",html,"text/html");
 };
 function download(filename,content,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();}
@@ -1118,6 +1084,69 @@ function populateFilterDropdownsUpdate() {
     if(!existingCTs.has(c)){const o=document.createElement("option");o.value=c;o.textContent=c;ctSel.appendChild(o);}
   });
 }
+
+
+// ---- MY SITES ----
+let mySitesName = localStorage.getItem("xsite_my_name") || "";
+
+function initMySites() {
+  const ciNames = [...new Set(sites.map(s => s.ci_contact))].sort();
+  const sel = document.getElementById("my-sites-select");
+  const promptSel = document.getElementById("prompt-name-select");
+  ciNames.forEach(c => {
+    const o1 = document.createElement("option"); o1.value=c; o1.textContent=c; sel.appendChild(o1);
+    const o2 = document.createElement("option"); o2.value=c; o2.textContent=c; promptSel.appendChild(o2);
+  });
+
+  if (!mySitesName) {
+    // First visit — show prompt
+    document.getElementById("name-prompt").style.display = "flex";
+  } else {
+    applyMySites(mySitesName);
+  }
+}
+
+function applyMySites(name) {
+  mySitesName = name;
+  const sel = document.getElementById("my-sites-select");
+  sel.value = name;
+  const viewAllBtn = document.getElementById("view-all-btn");
+  const countEl = document.getElementById("my-sites-count");
+  if (name) {
+    viewAllBtn.style.display = "inline";
+    const count = sites.filter(s => s.ci_contact === name).length;
+    countEl.textContent = `(${count} sites)`;
+    document.getElementById("f-ci").value = name;
+  } else {
+    viewAllBtn.style.display = "none";
+    countEl.textContent = "";
+    document.getElementById("f-ci").value = "";
+  }
+  applyFilters();
+}
+
+window.setMySites = function(name) {
+  localStorage.setItem("xsite_my_name", name);
+  applyMySites(name);
+};
+
+window.confirmMyName = function() {
+  const name = document.getElementById("prompt-name-select").value;
+  document.getElementById("name-prompt").style.display = "none";
+  localStorage.setItem("xsite_my_name", name);
+  applyMySites(name);
+};
+
+window.skipNamePrompt = function() {
+  document.getElementById("name-prompt").style.display = "none";
+  localStorage.setItem("xsite_my_name", "");
+  applyMySites("");
+};
+
+window.showNamePrompt = function() {
+  document.getElementById("prompt-name-select").value = mySitesName || "";
+  document.getElementById("name-prompt").style.display = "flex";
+};
 
 loadSites();
 </script>
