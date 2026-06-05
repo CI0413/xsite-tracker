@@ -220,6 +220,23 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
 .my-sites-prompt p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
 .my-sites-prompt select { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); margin-bottom: 16px; }
 .my-sites-prompt .prompt-btns { display: flex; gap: 10px; justify-content: center; }
+
+.pin-overlay { position: fixed; inset: 0; background: rgba(0,38,100,0.75); z-index: 500; display: none; align-items: center; justify-content: center; }
+.pin-overlay.open { display: flex; }
+.pin-box { background: white; border-radius: 12px; padding: 32px; width: 320px; max-width: 95vw; text-align: center; }
+.pin-box h3 { font-size: 18px; color: var(--dsv-navy); margin-bottom: 8px; }
+.pin-box p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.pin-dots { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); background: white; transition: background 0.15s; }
+.pin-dot.filled { background: var(--dsv-navy); border-color: var(--dsv-navy); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.pin-key { padding: 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer; background: white; font-family: var(--font); color: var(--dsv-navy); transition: all 0.1s; }
+.pin-key:hover { background: var(--dsv-navy-pale); }
+.pin-key:active { transform: scale(0.95); }
+.pin-key.clear { font-size: 13px; color: var(--text-muted); }
+.pin-error { color: var(--red); font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+.pin-setup-info { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
 </style>
 </head>
 <body>
@@ -250,7 +267,7 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
   <div class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</div>
   <div class="tab" onclick="showTab('tracker')" id="tab-tracker">Site Tracker</div>
   <div class="tab" onclick="showTab('export')" id="tab-export">Export / Import</div>
-  <div class="tab" onclick="showTab('settings')" id="tab-settings">Settings</div>
+  <div class="tab" onclick="gateSettings()" id="tab-settings">Settings</div>
 </div>
 
 <div class="my-sites-bar" id="my-sites-bar">
@@ -274,6 +291,35 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
       <button class="btn btn-primary" onclick="confirmMyName()">Confirm</button>
       <button class="btn btn-outline" onclick="skipNamePrompt()">View All Sites</button>
     </div>
+  </div>
+</div>
+
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h3 id="pin-title">Settings Access</h3>
+    <p id="pin-subtitle">Enter your 4-digit PIN to access settings.</p>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key clear" onclick="pinCancel()">Cancel</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key clear" onclick="pinBackspace()">&#9003;</button>
+    </div>
+    <div class="pin-setup-info" id="pin-setup-info"></div>
   </div>
 </div>
 
@@ -830,10 +876,13 @@ function renderModalStages(site) {
     }).join("")}
     <div style="margin-top:14px;"><div class="field-label" style="margin-bottom:6px;">Notes</div>
     <textarea rows="2" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:13px;font-family:var(--font);resize:vertical;" onchange="updateField('${site.id}','notes',this.value)">${site.notes||""}</textarea></div>
-    <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px;">
-      <button class="btn btn-outline" onclick="closeModal()">Close</button>
-      <button class="btn btn-primary" onclick="saveAndClose('${site.id}')">Save &amp; Close</button>
-    </div>`;
+    <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;">
+      <button class="btn btn-danger" onclick="deleteSiteConfirm('${site.id}')" style="font-size:12px;">&#128465; Delete Site</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="closeModal()">Close</button>
+        <button class="btn btn-primary" onclick="saveAndClose('${site.id}')">Save &amp; Close</button>
+      </div>
+    </div>\`;
 }
 
 function renderModalCheckins(site) {
@@ -1085,6 +1134,127 @@ function populateFilterDropdownsUpdate() {
   });
 }
 
+
+
+// ---- PIN LOCK ----
+let pinBuffer = "";
+let pinMode = "check"; // "check" or "setup"
+let pinUnlocked = false;
+let pinCallback = null;
+
+function getStoredPin() { return localStorage.getItem("xsite_settings_pin") || ""; }
+
+window.gateSettings = function() {
+  const storedPin = getStoredPin();
+  if (!storedPin) {
+    // No PIN set yet — go to setup
+    openPinOverlay("setup");
+  } else if (pinUnlocked) {
+    showTab("settings");
+  } else {
+    openPinOverlay("check");
+  }
+};
+
+function openPinOverlay(mode) {
+  pinMode = mode;
+  pinBuffer = "";
+  updatePinDots();
+  document.getElementById("pin-error").textContent = "";
+  document.getElementById("pin-overlay").classList.add("open");
+  if (mode === "setup") {
+    document.getElementById("pin-title").textContent = "Set a Settings PIN";
+    document.getElementById("pin-subtitle").textContent = "Choose a 4-digit PIN to protect settings.";
+    document.getElementById("pin-setup-info").textContent = "You will need this PIN to access settings in future.";
+  } else {
+    document.getElementById("pin-title").textContent = "Settings Access";
+    document.getElementById("pin-subtitle").textContent = "Enter your 4-digit PIN.";
+    document.getElementById("pin-setup-info").textContent = "";
+  }
+}
+
+window.pinKey = function(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) {
+    setTimeout(() => {
+      if (pinMode === "setup") {
+        localStorage.setItem("xsite_settings_pin", pinBuffer);
+        pinUnlocked = true;
+        closePinOverlay();
+        showTab("settings");
+      } else {
+        if (pinBuffer === getStoredPin()) {
+          pinUnlocked = true;
+          closePinOverlay();
+          if (pinCallback) { pinCallback(); pinCallback = null; }
+          else showTab("settings");
+        } else {
+          pinBuffer = "";
+          updatePinDots();
+          document.getElementById("pin-error").textContent = "Incorrect PIN. Try again.";
+          document.getElementById("pin-overlay").querySelector(".pin-box").style.animation = "shake 0.3s ease";
+          setTimeout(() => document.getElementById("pin-overlay").querySelector(".pin-box").style.animation = "", 300);
+        }
+      }
+    }, 150);
+  }
+};
+
+window.pinBackspace = function() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+  document.getElementById("pin-error").textContent = "";
+};
+
+window.pinCancel = function() { closePinOverlay(); pinCallback = null; };
+
+function closePinOverlay() {
+  document.getElementById("pin-overlay").classList.remove("open");
+  pinBuffer = "";
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById("pd"+i).className = "pin-dot" + (i < pinBuffer.length ? " filled" : "");
+  }
+}
+
+function requirePin(callback) {
+  if (pinUnlocked || !getStoredPin()) { callback(); return; }
+  pinCallback = callback;
+  openPinOverlay("check");
+}
+
+// Auto-lock settings after tab change
+const _origShowTab = window.showTab;
+window.showTab = function(tab) {
+  if (tab !== "settings") pinUnlocked = false;
+  _origShowTab(tab);
+};
+
+// ---- DELETE SITE ----
+window.deleteSiteConfirm = function(id) {
+  requirePin(async () => {
+    const site = sites.find(s => s.id === id);
+    if (!site) return;
+    if (!confirm(`Delete "${site.name}" (${site.lmpd})? This cannot be undone.`)) return;
+    try {
+      setSyncState("syncing");
+      const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      await deleteDoc(doc(db, "sites", id));
+      sites = sites.filter(s => s.id !== id);
+      setSyncState("synced");
+      closeModal();
+      document.getElementById("fb-site-count").textContent = sites.length;
+    } catch(e) {
+      setSyncState("offline");
+      alert("Error deleting site: " + e.message);
+    }
+  });
+};
 
 // ---- MY SITES ----
 let mySitesName = localStorage.getItem("xsite_my_name") || "";
