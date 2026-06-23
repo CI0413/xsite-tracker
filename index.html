@@ -803,13 +803,26 @@ async function loadSites() {
     const snap = await getDocs(collection(db,"sites"));
     snap.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);});
     document.getElementById("fb-site-count").textContent=sites.length;
+    if (sites.length === 0) {
+      document.getElementById("loading-msg").textContent = "No site data found. If this is unexpected, please contact Polina Fox before making any changes.";
+      setTimeout(() => {
+        document.getElementById("loading-screen").style.display = "none";
+      }, 4000);
+      return;
+    }
   } catch(e) {
     console.error("Error loading sites:", e);
+    document.getElementById("loading-msg").textContent = "Unable to connect to database. Please refresh or contact Polina Fox at polina.fox@dsv.com.";
+    setTimeout(() => {
+      document.getElementById("loading-screen").style.display = "none";
+    }, 5000);
+    return;
   }
   try { const ss=await getDoc(doc(db,"config","settings")); if(ss.exists()) settings={...settings,...ss.data()}; applySettingsToUI(); } catch(e){}
   document.getElementById("loading-screen").style.display="none";
   populateFilterDropdowns(); initMySites(); filtered=[...sites]; applyFilters(); renderDashboard(); keepalive();
   checkBackupReminder();
+  checkBackupHealth();
 }
 
 function applySettingsToUI() {
@@ -835,12 +848,20 @@ function applySettingsToUI() {
 async function saveSite(site) {
   setSyncState("syncing");
   try {
-    // Before-snapshot for backup and diff
+    // Verify document exists before saving - prevent accidental new doc creation
     let beforeData = {};
+    let docExists = false;
     try {
       const snap = await getDoc(doc(db,"sites",site.id));
-      if (snap.exists()) beforeData = snap.data();
+      docExists = snap.exists();
+      if (docExists) beforeData = snap.data();
     } catch(e2) {}
+    if (!docExists) {
+      setSyncState("offline");
+      alert("Safety check failed: site " + site.id + " does not exist in the database. Save blocked. Please contact Polina Fox at polina.fox@dsv.com.");
+      auditLog("blocked_save", site.id, { reason: "document does not exist in Firestore" });
+      return;
+    }
     await setDoc(doc(db,"sites",site.id), site);
     // Compute field-level diff
     const skipFields = ["history", "checkin_log"];
@@ -1458,7 +1479,12 @@ function requirePin(callback) {
 // Auto-lock settings after tab change
 const _origShowTab = window.showTab;
 window.showTab = function(tab) {
-  if (tab !== "settings") pinUnlocked = false;
+  if (tab !== "settings") {
+    pinUnlocked = false;
+    // Re-hide View All button when PIN is locked
+    const viewAllBtn = document.getElementById("view-all-btn");
+    if (viewAllBtn) viewAllBtn.style.display = "none";
+  }
   _origShowTab(tab);
 };
 
@@ -1606,7 +1632,7 @@ function applyMySites(name) {
   const viewAllBtn = document.getElementById("view-all-btn");
   const countEl = document.getElementById("my-sites-count");
   if (name) {
-    viewAllBtn.style.display = "inline";
+    viewAllBtn.style.display = pinUnlocked ? "inline" : "none";
     const count = sites.filter(s => s.ci_contact === name).length;
     countEl.textContent = `(${count} sites)`;
     document.getElementById("f-ci").value = name;
@@ -1654,6 +1680,56 @@ function checkBackupReminder() {
     }
   }
 }
+
+// ── BACKUP HEALTH CHECK ───────────────────────────────────────────────────────
+async function checkBackupHealth() {
+  try {
+    const q = query(collection(db, "backups"), orderBy("timestamp", "desc"), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      sendBackupAlert("No backups found in Firestore. The backup system may not be working.");
+      return;
+    }
+    const lastBackup = snap.docs[0].data();
+    if (!lastBackup.timestamp) return;
+    const lastTs = lastBackup.timestamp.seconds * 1000;
+    const hoursSince = (Date.now() - lastTs) / (1000 * 60 * 60);
+    if (hoursSince > 24) {
+      const hrs = Math.round(hoursSince);
+      sendBackupAlert("No backup has been recorded in the last " + hrs + " hours. Please check the XSite Tracker backup system.");
+      // Show dashboard alert
+      const alertZone = document.getElementById("alert-zone");
+      if (alertZone) {
+        const el = document.createElement("div");
+        el.className = "alert-banner";
+        el.style.background = "#FEF3C7";
+        el.style.color = "#92400E";
+        el.style.borderColor = "#F59E0B";
+        el.innerHTML = "&#9888; Backup alert: No backup recorded in " + hrs + " hours. Check Firebase or contact your admin.";
+        alertZone.prepend(el);
+      }
+    }
+  } catch(e) {
+    console.warn("Backup health check failed:", e);
+  }
+}
+
+async function sendBackupAlert(message) {
+  try {
+    if (typeof emailjs === "undefined") return;
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: "polina.fox@dsv.com",
+      to_name: "Polina Fox",
+      site_name: "XSite Americas Tracker",
+      site_lmpd: "SYSTEM",
+      message: message,
+      escalation_level: "BACKUP ALERT"
+    });
+  } catch(e) {
+    console.warn("Backup alert email failed:", e);
+  }
+}
+
 window.dismissBackupReminder = function() {
   localStorage.setItem('backup_reminder_dismissed', new Date().toISOString());
   document.getElementById('weekly-backup-reminder').style.display = 'none';
