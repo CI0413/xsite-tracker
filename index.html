@@ -533,12 +533,13 @@ const db = getFirestore(app);
 // ── AUDIT LOG & BACKUP FUNCTIONS ─────────────────────────────────────────────
 async function auditLog(action, siteId, changes) {
   try {
+    const userName = localStorage.getItem("xsite_my_name") || "Unknown";
     await addDoc(collection(db, "audit_log"), {
       action: action,
       site_id: siteId || null,
       changes: JSON.stringify(changes || {}),
       timestamp: serverTimestamp(),
-      user_agent: navigator.userAgent.substring(0, 100)
+      user: userName
     });
   } catch(e) {
     console.warn("Audit log failed:", e);
