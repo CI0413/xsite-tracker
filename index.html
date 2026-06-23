@@ -822,7 +822,7 @@ async function loadSites() {
   document.getElementById("loading-screen").style.display="none";
   populateFilterDropdowns(); initMySites(); filtered=[...sites]; applyFilters(); renderDashboard(); keepalive();
   checkBackupReminder();
-  checkBackupHealth();
+  setTimeout(checkBackupHealth, 5000); // wait 5s for EmailJS to load
 }
 
 function applySettingsToUI() {
