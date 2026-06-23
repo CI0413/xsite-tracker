@@ -507,6 +507,7 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, writeBatch, addDoc, serverTimestamp, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -524,6 +525,10 @@ const EMAILJS_TEMPLATE_ID = "template_0gt0ktg";
 const TRACKER_URL = "https://ci0413.github.io/xsite-tracker";
 
 const app = initializeApp(firebaseConfig);
+const appCheck = initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider('6LcOri4tAAAAAPMwx4x4ZKJNqyv92X1YMa7jywqs'),
+  isTokenAutoRefreshEnabled: true
+});
 const db = getFirestore(app);
 // ── AUDIT LOG & BACKUP FUNCTIONS ─────────────────────────────────────────────
 async function auditLog(action, siteId, changes) {
