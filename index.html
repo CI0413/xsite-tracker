@@ -835,16 +835,26 @@ function applySettingsToUI() {
 async function saveSite(site) {
   setSyncState("syncing");
   try {
-    // Before-snapshot for backup
+    // Before-snapshot for backup and diff
     let beforeData = {};
     try {
       const snap = await getDoc(doc(db,"sites",site.id));
       if (snap.exists()) beforeData = snap.data();
     } catch(e2) {}
     await setDoc(doc(db,"sites",site.id), site);
-    // Backup and audit after successful save
+    // Compute field-level diff
+    const skipFields = ["history", "checkin_log"];
+    const diff = {};
+    for (const key of Object.keys(site)) {
+      if (skipFields.includes(key)) continue;
+      const before = JSON.stringify(beforeData[key] ?? null);
+      const after = JSON.stringify(site[key] ?? null);
+      if (before !== after) {
+        diff[key] = { from: beforeData[key] ?? null, to: site[key] ?? null };
+      }
+    }
     backupSite(site.id, beforeData, site);
-    auditLog("save_site", site.id, { fields: Object.keys(site).join(",") });
+    auditLog("save_site", site.id, Object.keys(diff).length > 0 ? diff : { note: "no field changes detected" });
     setSyncState("synced");
   }
   catch(e) { setSyncState("offline"); }
