@@ -1715,8 +1715,13 @@ async function checkBackupHealth() {
 }
 
 async function sendBackupAlert(message) {
+  console.log("sendBackupAlert called:", message);
+  console.log("emailjs defined:", typeof emailjs !== "undefined");
+  console.log("SERVICE_ID:", EMAILJS_SERVICE_ID);
+  console.log("TEMPLATE_ID:", EMAILJS_TEMPLATE_ID);
   try {
-    if (typeof emailjs === "undefined") return;
+    if (typeof emailjs === "undefined") { console.warn("EmailJS not loaded"); return; }
+    console.log("Sending email...");
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: "polina.fox@dsv.com",
       site_name: "XSite Americas Tracker — BACKUP ALERT",
@@ -1727,6 +1732,7 @@ async function sendBackupAlert(message) {
       reason: message,
       tracker_link: TRACKER_URL
     });
+    console.log("Backup alert email sent successfully");
   } catch(e) {
     console.warn("Backup alert email failed:", e);
   }
