@@ -1703,7 +1703,7 @@ async function checkBackupHealth() {
     if (!lastBackup.timestamp) return;
     const lastTs = lastBackup.timestamp.seconds * 1000;
     const hoursSince = (Date.now() - lastTs) / (1000 * 60 * 60);
-    if (hoursSince > 0.01) { // TEMP TEST - remove after testing
+    if (hoursSince > 24) {
       const hrs = Math.round(hoursSince);
       sendBackupAlert("No backup has been recorded in the last " + hrs + " hours. Please check the XSite Tracker backup system.");
       // Show dashboard alert
@@ -1724,13 +1724,8 @@ async function checkBackupHealth() {
 }
 
 async function sendBackupAlert(message) {
-  console.log("sendBackupAlert called:", message);
-  console.log("emailjs defined:", typeof emailjs !== "undefined");
-  console.log("SERVICE_ID:", EMAILJS_SERVICE_ID);
-  console.log("TEMPLATE_ID:", EMAILJS_TEMPLATE_ID);
   try {
-    if (typeof emailjs === "undefined") { console.warn("EmailJS not loaded"); return; }
-    console.log("Sending email...");
+    if (typeof emailjs === "undefined") return;
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: "polina.fox@dsv.com",
       site_name: "XSite Americas Tracker — BACKUP ALERT",
@@ -1741,7 +1736,6 @@ async function sendBackupAlert(message) {
       reason: message,
       tracker_link: TRACKER_URL
     });
-    console.log("Backup alert email sent successfully");
   } catch(e) {
     console.warn("Backup alert email failed:", e);
   }
