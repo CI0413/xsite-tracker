@@ -1656,7 +1656,7 @@ window.viewAuditLog = async function() {
     snap.forEach(d => {
       const data = d.data();
       const ts = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : 'unknown';
-      html += \`<div style="padding:4px 0;border-bottom:1px solid var(--border);"><strong>\${data.action}</strong> — \${data.site_id || 'global'} <span style="color:var(--text-muted);">\${ts}</span></div>\`;
+      html += `<div style="padding:4px 0;border-bottom:1px solid var(--border);"><strong>${data.action}</strong> — ${data.site_id || 'global'} <span style="color:var(--text-muted);">${ts}</span></div>`;
     });
     el.innerHTML = html;
   } catch(e) {
