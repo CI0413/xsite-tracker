@@ -1694,7 +1694,7 @@ async function checkBackupHealth() {
     if (!lastBackup.timestamp) return;
     const lastTs = lastBackup.timestamp.seconds * 1000;
     const hoursSince = (Date.now() - lastTs) / (1000 * 60 * 60);
-    if (hoursSince > 24) {
+    if (hoursSince > 0.01) { // TEMP TEST - remove after testing
       const hrs = Math.round(hoursSince);
       sendBackupAlert("No backup has been recorded in the last " + hrs + " hours. Please check the XSite Tracker backup system.");
       // Show dashboard alert
