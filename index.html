@@ -1719,11 +1719,13 @@ async function sendBackupAlert(message) {
     if (typeof emailjs === "undefined") return;
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: "polina.fox@dsv.com",
-      to_name: "Polina Fox",
-      site_name: "XSite Americas Tracker",
-      site_lmpd: "SYSTEM",
-      message: message,
-      escalation_level: "BACKUP ALERT"
+      site_name: "XSite Americas Tracker — BACKUP ALERT",
+      lmpd: "SYSTEM",
+      region: "ALL REGIONS",
+      ci_contact: "Automated System",
+      escalation_level: "BACKUP ALERT",
+      reason: message,
+      tracker_link: TRACKER_URL
     });
   } catch(e) {
     console.warn("Backup alert email failed:", e);
