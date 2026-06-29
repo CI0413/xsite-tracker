@@ -506,6 +506,13 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  window.addEventListener('load', function() {
+    if (typeof emailjs !== 'undefined') emailjs.init('PqrhXCC-QHPPV8NSv');
+  });
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
