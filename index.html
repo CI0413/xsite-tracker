@@ -398,6 +398,7 @@ input[type=email] { border: 1px solid var(--border); border-radius: 4px; padding
       <div class="export-card" onclick="exportCSV()"><div class="export-icon">&#128196;</div><div class="export-title">CSV Export</div><div class="export-desc">All sites with current status — open in Excel</div></div>
       <div class="export-card" onclick="exportJSON()"><div class="export-icon">&#128209;</div><div class="export-title">JSON Backup</div><div class="export-desc">Full data snapshot including check-in history</div></div>
       <div class="export-card" onclick="exportSummaryHTML()"><div class="export-icon">&#128203;</div><div class="export-title">Summary Report</div><div class="export-desc">Printable HTML snapshot for Jeff or leadership</div></div>
+      <div class="export-card" onclick="exportActionTrackerXLSX()"><div class="export-icon">&#128202;</div><div class="export-title">Action Tracker Report</div><div class="export-desc">Excel report showing action tracker % by site, country and CI contact</div></div>
     </div>
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
       <h4 style="font-size:14px;font-weight:700;color:var(--dsv-navy);margin-bottom:6px;">Import Sites from CSV</h4>
@@ -1273,6 +1274,74 @@ window.closeModal = function() {
 
 function renderAll(){renderDashboard();applyFilters();}
 
+
+
+window.exportActionTrackerXLSX = function() {
+  if (typeof XLSX === 'undefined') {
+    alert('Excel library not loaded yet. Please try again in a moment.');
+    return;
+  }
+  
+  // Build data rows sorted by country then site name
+  const sorted = [...sites].sort((a, b) => {
+    if (a.country < b.country) return -1;
+    if (a.country > b.country) return 1;
+    if (a.name < b.name) return -1;
+    if (a.name > b.name) return 1;
+    return 0;
+  });
+
+  const rows = sorted.map(s => ({
+    'Site Name': s.name,
+    'LMPD': s.lmpd,
+    'Country': s.country,
+    'CI Contact': s.ci_contact,
+    'Action Tracker %': s.action_tracker_pct || 0
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 45 }, // Site Name
+    { wch: 16 }, // LMPD
+    { wch: 14 }, // Country
+    { wch: 22 }, // CI Contact
+    { wch: 18 }, // Action Tracker %
+  ];
+
+  // Style header row
+  const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '002664' } }, alignment: { horizontal: 'center' } };
+  ['A1','B1','C1','D1','E1'].forEach(cell => {
+    if (ws[cell]) ws[cell].s = headerStyle;
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Action Tracker');
+
+  // Add summary sheet by CI contact
+  const byCI = {};
+  sorted.forEach(s => {
+    if (!byCI[s.ci_contact]) byCI[s.ci_contact] = { contact: s.ci_contact, total: 0, sum: 0 };
+    byCI[s.ci_contact].total++;
+    byCI[s.ci_contact].sum += (s.action_tracker_pct || 0);
+  });
+  const summaryRows = Object.values(byCI).map(c => ({
+    'CI Contact': c.contact,
+    'Total Sites': c.total,
+    'Avg Action Tracker %': Math.round(c.sum / c.total)
+  })).sort((a, b) => b['Avg Action Tracker %'] - a['Avg Action Tracker %']);
+
+  const ws2 = XLSX.utils.json_to_sheet(summaryRows);
+  ws2['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 22 }];
+  ['A1','B1','C1'].forEach(cell => {
+    if (ws2[cell]) ws2[cell].s = headerStyle;
+  });
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary by CI Contact');
+
+  const date = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, 'XSite_ActionTracker_' + date + '.xlsx');
+};
 
 window.exportJSON=function(){download("XSite_Backup_"+new Date().toISOString().split("T")[0]+".json",JSON.stringify(sites,null,2),"application/json");};
 window.exportSummaryHTML=function(){
