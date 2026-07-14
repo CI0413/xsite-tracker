@@ -448,6 +448,7 @@ Toronto Pearson,CATOR02,Canada,Canada,Matt Walsh,2026-06-01</pre>
       <div class="setting-row"><span class="setting-name">USA (Rod Otero)</span><input type="email" id="s-dir-us" value="rod.otero@dsv.com" onchange="saveSettings()"></div>
       <div class="setting-row"><span class="setting-name">Canada (Matt Walsh)</span><input type="email" id="s-dir-canada" value="matt.walsh@dsv.com" onchange="saveSettings()"></div>
       <div class="setting-row"><span class="setting-name">LATAM (Vanessa Ochoa)</span><input type="email" id="s-dir-latam" value="placeholder@dsv.com" onchange="saveSettings()"></div>
+      <div style="margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="testDirectors()">Send test to all directors</button></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
         <div style="font-size:11px;color:var(--text-muted);line-height:1.6;">
           <strong>AMBER</strong> → country program lead<br>
@@ -766,6 +767,35 @@ window.testEmail = async function() {
     });
     showToast("&#9989; Test email sent to " + testEmail);
   } catch(e) { alert("Email error: " + JSON.stringify(e)); }
+};
+
+window.testDirectors = async function() {
+  if (typeof emailjs === "undefined") { alert("EmailJS still loading, try again in a moment."); return; }
+  const directors = [
+    { email: settings.dirUS, region: "USA", name: "Rod Otero" },
+    { email: settings.dirCanada, region: "Canada", name: "Matt Walsh" },
+  ];
+  let sent = [], skipped = [];
+  for (const dir of directors) {
+    if (!dir.email || dir.email.includes("placeholder")) { skipped.push(dir.name); continue; }
+    try {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: dir.email,
+        site_name: "TEST SITE — XSite Americas",
+        lmpd: "TEST-001",
+        region: dir.region,
+        ci_contact: dir.name,
+        escalation_level: "RED — Critical (TEST)",
+        reason: "This is a test escalation email from the XSite Americas Tracker.",
+        tracker_link: TRACKER_URL
+      });
+      sent.push(dir.name);
+    } catch(e) { alert("Email error for " + dir.name + ": " + JSON.stringify(e)); }
+  }
+  let msg = "";
+  if (sent.length) msg += "&#9989; Test sent to: " + sent.join(", ") + ". ";
+  if (skipped.length) msg += "&#9888; Skipped (placeholder): " + skipped.join(", ");
+  showToast(msg || "No directors configured.");
 };
 
 function showToast(msg) {
