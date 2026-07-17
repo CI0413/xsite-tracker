@@ -587,8 +587,8 @@ let settings = {
   // Program Leads (AMBER)
   leadUS: "christine.hallier@dsv.com",
   leadCanada: "matt.walsh@dsv.com",
-  leadMexico: "placeholder@dsv.com",
-  leadBrazil: "placeholder@dsv.com",
+  leadMexico: ["luis.francisco.velador@dsv.com", "jesus.alfredo.haro@dsv.com"],
+  leadBrazil: ["adriano.luis.bronzatto@dsv.com", "nelson.noga@dsv.com"],
   leadColombia: "placeholder@dsv.com",
   leadPeru: "placeholder@dsv.com",
   leadChile: "placeholder@dsv.com",
@@ -706,27 +706,35 @@ async function sendEscalationEmail(site, level) {
   const reason = getEscalationReason(site);
   const levelLabel = level === "red" ? "RED — Critical" : "AMBER — At Risk";
   const recipient = level === "red" ? getRedEmail(site) : getAmberEmail(site);
-  if (!recipient || recipient.includes("placeholder")) {
-    console.warn("Placeholder email — skipping send for", site.name);
-    logEscalation(site, level, reason, recipient + " (not sent — placeholder)");
+  
+  // Handle both string and array recipients
+  const recipients = Array.isArray(recipient) ? recipient : [recipient];
+  const validRecipients = recipients.filter(r => r && !r.includes("placeholder"));
+  
+  if (validRecipients.length === 0) {
+    console.warn("No valid emails — skipping send for", site.name);
+    logEscalation(site, level, reason, recipients.join(", ") + " (not sent — placeholder)");
     return;
   }
+  
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: recipient,
-      site_name: site.name,
-      lmpd: site.lmpd,
-      region: site.region,
-      ci_contact: site.ci_contact,
-      escalation_level: levelLabel,
-      reason: reason,
-      tracker_link: TRACKER_URL
-    });
-    logEscalation(site, level, reason, recipient);
-    showToast("&#9993; Escalation email sent (" + level.toUpperCase() + ") to " + recipient);
+    for (const email of validRecipients) {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: email,
+        site_name: site.name,
+        lmpd: site.lmpd,
+        region: site.region,
+        ci_contact: site.ci_contact,
+        escalation_level: levelLabel,
+        reason: reason,
+        tracker_link: TRACKER_URL
+      });
+    }
+    logEscalation(site, level, reason, validRecipients.join(", "));
+    showToast("&#9993; Escalation email sent (" + level.toUpperCase() + ") to " + validRecipients.length + " recipient" + (validRecipients.length > 1 ? "s" : ""));
   } catch(e) {
     console.warn("EmailJS error:", e);
-    logEscalation(site, level, reason, "FAILED: " + recipient);
+    logEscalation(site, level, reason, "FAILED: " + validRecipients.join(", "));
   }
 }
 
@@ -871,8 +879,8 @@ function applySettingsToUI() {
   document.getElementById("s-year-end").value = settings.yearEnd;
   document.getElementById("s-lead-us").value = settings.leadUS||"";
   document.getElementById("s-lead-canada").value = settings.leadCanada||"";
-  document.getElementById("s-lead-mexico").value = settings.leadMexico||"";
-  document.getElementById("s-lead-brazil").value = settings.leadBrazil||"";
+  document.getElementById("s-lead-mexico").value = Array.isArray(settings.leadMexico) ? settings.leadMexico.join(", ") : (settings.leadMexico||"");
+  document.getElementById("s-lead-brazil").value = Array.isArray(settings.leadBrazil) ? settings.leadBrazil.join(", ") : (settings.leadBrazil||"");
   document.getElementById("s-lead-colombia").value = settings.leadColombia||"";
   document.getElementById("s-lead-peru").value = settings.leadPeru||"";
   document.getElementById("s-lead-chile").value = settings.leadChile||"";
@@ -926,11 +934,11 @@ window.saveSettings = async function() {
   settings.stagnantDays = parseInt(document.getElementById("s-stagnant-days").value)||21;
   settings.regDeadline = document.getElementById("s-reg-deadline").value;
   settings.yearEnd = document.getElementById("s-year-end").value;
-  // Program Leads
+  // Program Leads - Mexico & Brazil as arrays, others as strings
   settings.leadUS = document.getElementById("s-lead-us").value;
   settings.leadCanada = document.getElementById("s-lead-canada").value;
-  settings.leadMexico = document.getElementById("s-lead-mexico").value;
-  settings.leadBrazil = document.getElementById("s-lead-brazil").value;
+  settings.leadMexico = document.getElementById("s-lead-mexico").value.split(",").map(e => e.trim()).filter(e => e);
+  settings.leadBrazil = document.getElementById("s-lead-brazil").value.split(",").map(e => e.trim()).filter(e => e);
   settings.leadColombia = document.getElementById("s-lead-colombia").value;
   settings.leadPeru = document.getElementById("s-lead-peru").value;
   settings.leadChile = document.getElementById("s-lead-chile").value;
