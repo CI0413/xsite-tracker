@@ -761,19 +761,43 @@ async function logEscalation(site, level, reason, recipient) {
 
 window.testEmail = async function() {
   if (typeof emailjs === "undefined") { alert("EmailJS still loading, try again in a moment."); return; }
-  const testEmail = settings.leadUS || "christine.hallier@dsv.com";
+  const country = prompt("Which country to test? (usa, canada, mexico, brazil, colombia, peru, chile, argentina, panama)", "usa");
+  if (!country) return;
+  
+  const countryMap = {
+    "usa": { email: settings.leadUS, name: "USA", site: "Lancaster, TX (TEST)", lmpd: "USLNC01", contact: "Christine Hallier" },
+    "canada": { email: settings.leadCanada, name: "Canada", site: "Brampton (TEST)", lmpd: "CABRP001", contact: "Matt Walsh" },
+    "mexico": { email: settings.leadMexico, name: "Mexico", site: "Guadalajara (TEST)", lmpd: "MXGDL001", contact: "Luis Velador" },
+    "brazil": { email: settings.leadBrazil, name: "Brazil", site: "São Paulo (TEST)", lmpd: "BRSOD001", contact: "Adriano Bronzatto" },
+    "colombia": { email: settings.leadColombia, name: "Colombia", site: "Bogotá (TEST)", lmpd: "COBOG01", contact: "Carlos Ariza" },
+    "peru": { email: settings.leadPeru, name: "Peru", site: "Lima (TEST)", lmpd: "PELIM01", contact: "Bruno Zanier" },
+    "chile": { email: settings.leadChile, name: "Chile", site: "Santiago (TEST)", lmpd: "CLSCL01", contact: "Bruno Zanier" },
+    "argentina": { email: settings.leadArgentina, name: "Argentina", site: "Buenos Aires (TEST)", lmpd: "ARBUE01", contact: "Bruno Zanier" },
+    "panama": { email: settings.leadPanama, name: "Panama", site: "Panama City (TEST)", lmpd: "PACFZ01", contact: "Bruno Zanier" }
+  };
+  
+  const config = countryMap[country.toLowerCase()];
+  if (!config) { alert("Country not found"); return; }
+  
+  const recipients = Array.isArray(config.email) ? config.email : [config.email];
+  const validRecipients = recipients.filter(e => e && !e.includes("placeholder"));
+  
+  if (validRecipients.length === 0) { alert("No valid email configured for " + config.name); return; }
+  
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: testEmail,
-      site_name: "Lancaster, TX (TEST)",
-      lmpd: "USLNC01",
-      region: "USA",
-      ci_contact: "Christine Hallier",
-      escalation_level: "AMBER — At Risk (TEST)",
-      reason: "This is a test email from the DSV Xsite Americas Tracker.",
-      tracker_link: TRACKER_URL
-    });
-    showToast("&#9989; Test email sent to " + testEmail);
+    for (const email of validRecipients) {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: email,
+        site_name: config.site,
+        lmpd: config.lmpd,
+        region: config.name,
+        ci_contact: config.contact,
+        escalation_level: "AMBER — At Risk (TEST)",
+        reason: "This is a test email from the DSV Xsite Americas Tracker.",
+        tracker_link: TRACKER_URL
+      });
+    }
+    showToast("&#9989; Test email sent to " + validRecipients.join(", "));
   } catch(e) { alert("Email error: " + JSON.stringify(e)); }
 };
 
