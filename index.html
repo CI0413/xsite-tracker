@@ -773,7 +773,14 @@ window.forceSeedFirebase = async function() {
 };
 
 async function loadSites() {
-  const snap = await getDocs(collection(db,"sites"));
+  let snap;
+  try {
+    snap = await getDocs(collection(db,"sites"));
+  } catch(e) {
+    document.getElementById("loading-msg").textContent = "Firebase error: " + e.message;
+    console.error("loadSites error:", e);
+    return;
+  }
   if (snap.empty) { await seedFirebase(); const s2=await getDocs(collection(db,"sites")); s2.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);}); }
   else { snap.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);}); document.getElementById("fb-site-count").textContent=sites.length; }
   try { const ss=await getDoc(doc(db,"config","settings")); if(ss.exists()) settings={...settings,...ss.data()}; applySettingsToUI(); } catch(e){}
@@ -1317,7 +1324,10 @@ async function getStoredPin() {
   try {
     const snap = await getDoc(doc(db, "config", "pin"));
     cachedPin = snap.exists() ? (snap.data().value || "") : "";
-  } catch(e) { cachedPin = ""; }
+  } catch(e) { 
+    console.warn("PIN read error:", e);
+    cachedPin = ""; 
+  }
   return cachedPin;
 }
 
@@ -1327,13 +1337,18 @@ async function savePin(pin) {
 }
 
 window.gateSettings = async function() {
-  const storedPin = await getStoredPin();
-  if (!storedPin) {
-    openPinOverlay("setup");
-  } else if (pinUnlocked) {
-    showTab("settings");
-  } else {
-    openPinOverlay("check");
+  try {
+    const storedPin = await getStoredPin();
+    if (!storedPin) {
+      openPinOverlay("setup");
+    } else if (pinUnlocked) {
+      showTab("settings");
+    } else {
+      openPinOverlay("check");
+    }
+  } catch(e) {
+    console.warn("Gate settings error:", e);
+    showTab("settings"); // fallback — allow access if PIN check fails
   }
 };
 
@@ -1409,6 +1424,9 @@ function requirePin(callback) {
     if (pinUnlocked || !storedPin) { callback(); return; }
     pinCallback = callback;
     openPinOverlay("check");
+  }).catch(e => {
+    console.warn("requirePin error:", e);
+    callback(); // fallback
   });
 }
 
