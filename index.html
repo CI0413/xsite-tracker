@@ -781,7 +781,10 @@ async function loadSites() {
     console.error("loadSites error:", e);
     return;
   }
-  if (snap.empty) { await seedFirebase(); const s2=await getDocs(collection(db,"sites")); s2.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);}); }
+  if (snap.empty) {
+    document.getElementById("loading-msg").textContent = "No sites found. Please contact Polina Fox to initialize the database.";
+    return;
+  }
   else { snap.forEach(d=>{const dat=d.data();if(!dat.checkin_log)dat.checkin_log=[];sites.push(dat);}); document.getElementById("fb-site-count").textContent=sites.length; }
   try { const ss=await getDoc(doc(db,"config","settings")); if(ss.exists()) settings={...settings,...ss.data()}; applySettingsToUI(); } catch(e){}
   document.getElementById("loading-screen").style.display="none";
